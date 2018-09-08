@@ -87,7 +87,7 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 		}
 		leveldb.StartMetrics(s.chainDBs[i], "chaindb"+chainNumString, log)
 	}
-	// TODO: initialize the accountStateDBRootHash
+	
 	// Initialize account state info DB.
 	accountStateDBPath := filepath.Join(serviceContext.DataDir, AccountStateDir)
 	log.Info("NewSeeleService account state datadir is %s", accountStateDBPath)
@@ -102,6 +102,11 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 
 	// initialize accountStateDB with genesis info
 	statedb, err := core.getStateDB(genesis.info)
+	if err != nil {
+		return err
+	}
+
+	accountStateDBRootHash, err := statedb.Hash()
 	if err != nil {
 		return err
 	}
