@@ -13,6 +13,7 @@ import (
 	"github.com/seeleteam/go-seele/common"
 	"github.com/seeleteam/go-seele/core"
 	"github.com/seeleteam/go-seele/core/store"
+	"github.com/seeleteam/go-seele/core/state"
 	"github.com/seeleteam/go-seele/database"
 	"github.com/seeleteam/go-seele/database/leveldb"
 	"github.com/seeleteam/go-seele/event"
@@ -33,11 +34,12 @@ type SeeleService struct {
 	seeleProtocol *SeeleProtocol
 	log           *log.SeeleLog
 
-	txPool         *core.TransactionPool
+	txPools         [numOfChains]*core.TransactionPool
 	debtPool       *core.DebtPool
-	chain          *core.Blockchain
-	chainDB        database.Database // database used to store blocks.
+	chains          [numOfChains]*core.Blockchain
+	chainDBs        [numOfChains]database.Database // database used to store blocks.
 	accountStateDB database.Database // database used to store account state info.
+	accountStateDBRootHash common.Hash
 	miner          *miner.Miner
 
 	lastHeader               common.Hash
@@ -49,14 +51,20 @@ type ServiceContext struct {
 	DataDir string
 }
 
-func (s *SeeleService) TxPool() *core.TransactionPool { return s.txPool }
+func (s *SeeleService) TxPool() []*core.TransactionPool { return s.txPools }
 func (s *SeeleService) DebtPool() *core.DebtPool      { return s.debtPool }
-func (s *SeeleService) BlockChain() *core.Blockchain  { return s.chain }
+func (s *SeeleService) BlockChain() []*core.Blockchain  { return s.chains }
 func (s *SeeleService) NetVersion() uint64            { return s.networkID }
 func (s *SeeleService) Miner() *miner.Miner           { return s.miner }
 func (s *SeeleService) Downloader() *downloader.Downloader {
 	return s.seeleProtocol.Downloader()
 }
+
+// GetCurrentState returns the current state of the accounts
+func (s *SeeleService) GetCurrentState() (*state.Statedb, error) {
+	return state.NewStatedb(s.accountStateDBRootHash, s.accountStateDB)
+}
+
 
 // NewSeeleService create SeeleService
 func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) (s *SeeleService, err error) {
@@ -68,57 +76,84 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 	serviceContext := ctx.Value("ServiceContext").(ServiceContext)
 
 	// Initialize blockchain DB.
-	chainDBPath := filepath.Join(serviceContext.DataDir, BlockChainDir)
-	log.Info("NewSeeleService BlockChain datadir is %s", chainDBPath)
-	s.chainDB, err = leveldb.NewLevelDB(chainDBPath)
-	if err != nil {
-		log.Error("NewSeeleService Create BlockChain err. %s", err)
-		return nil, err
+	for i := 0; i < numOfChains; i++ {
+		chainNumString := strconv.Itoa(i)
+		chainDBPath := filepath.Join(serviceContext.DataDir, BlockChainDir, chainNumString)
+		log.Info("NewSeeleService BlockChain datadir is %s", chainDBPath)	
+		s.chainDBs[i],err = leveldb.NewLevelDB(chainDBPath)
+		if err != nil {
+			log.Error("NewSeeleService Create BlockChain err. %s", err)
+			return nil, err
+		}
+		leveldb.StartMetrics(s.chainDBs[i], "chaindb"+chainNumString, log)
 	}
-	leveldb.StartMetrics(s.chainDB, "chaindb", log)
-
+	// TODO: initialize the accountStateDBRootHash
 	// Initialize account state info DB.
 	accountStateDBPath := filepath.Join(serviceContext.DataDir, AccountStateDir)
 	log.Info("NewSeeleService account state datadir is %s", accountStateDBPath)
 	s.accountStateDB, err = leveldb.NewLevelDB(accountStateDBPath)
 	if err != nil {
-		s.chainDB.Close()
+		for i := 0; i < numOfChains; i++ {
+			s.chainDBs[i].Close()
+		}
 		log.Error("NewSeeleService Create BlockChain err: failed to create account state DB, %s", err)
 		return nil, err
 	}
 
+	// initialize accountStateDB with genesis info
+	statedb, err := core.getStateDB(genesis.info)
+	if err != nil {
+		return err
+	}
+
+	batch := s.accountStateDB.NewBatch()
+	statedb.Commit(batch)
+	if err = batch.Commit(); err != nil {
+		return err
+	}
+
 	// initialize and validate genesis
-	bcStore := store.NewCachedStore(store.NewBlockchainDatabase(s.chainDB))
-	genesis := core.GetGenesis(conf.SeeleConfig.GenesisConfig)
-
-	err = genesis.InitializeAndValidate(bcStore, s.accountStateDB)
-	if err != nil {
-		s.chainDB.Close()
-		s.accountStateDB.Close()
-		log.Error("NewSeeleService genesis.Initialize err. %s", err)
-		return nil, err
-	}
-
-	recoveryPointFile := filepath.Join(serviceContext.DataDir, BlockChainRecoveryPointFile)
-	s.chain, err = core.NewBlockchain(bcStore, s.accountStateDB, recoveryPointFile)
-	if err != nil {
-		s.chainDB.Close()
-		s.accountStateDB.Close()
-		log.Error("failed to init chain in NewSeeleService. %s", err)
-		return nil, err
-	}
-
-	err = s.initPool(conf)
-	if err != nil {
-		s.chainDB.Close()
-		s.accountStateDB.Close()
-		log.Error("failed to create transaction pool in NewSeeleService, %s", err)
-		return nil, err
+	for i := 0; i < numOfChains; i++ {
+		bcStore := store.NewCachedStore(store.NewBlockchainDatabase(s.chainDBs[i]))
+		genesis := core.GetGenesis(conf.SeeleConfig.GenesisConfig)
+		err = genesis.InitializeAndValidate(bcStore)
+		if err != nil {
+			for i := 0; i < numOfChains; i++ {
+				s.chainDBs[i].Close()
+			}
+			s.accountStateDB.Close()
+			log.Error("NewSeeleService genesis.Initialize err. %s", err)
+			return nil, err
+		}
+	
+		chainNumString = strconv.Itoa(i)
+		recoveryPointFile := filepath.Join(serviceContext.DataDir, BlockChainRecoveryPointFile, chainNumString)
+		s.chains[i], err = core.NewBlockchain(bcStore, s.accountStateDB, recoveryPointFile)
+		if err != nil {
+			for i := 0; i < numOfChains; i++ {
+				s.chainDBs[i].Close()
+			}
+			s.accountStateDB.Close()
+			log.Error("failed to init chain in NewSeeleService. %s", err)
+			return nil, err
+		}
+	
+		err = s.initPool(conf)
+		if err != nil {
+			for i := 0; i < numOfChains; i++ {
+				s.chainDBs[i].Close()
+			}
+			s.accountStateDB.Close()
+			log.Error("failed to create transaction pool in NewSeeleService, %s", err)
+			return nil, err
+		}
 	}
 
 	s.seeleProtocol, err = NewSeeleProtocol(s, log)
 	if err != nil {
-		s.chainDB.Close()
+		for i := 0; i < numOfChains; i++ {
+			s.chainDBs[i].Close()
+		}
 		s.accountStateDB.Close()
 		log.Error("failed to create seeleProtocol in NewSeeleService, %s", err)
 		return nil, err
