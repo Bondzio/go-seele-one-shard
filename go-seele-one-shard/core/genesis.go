@@ -56,24 +56,14 @@ func GetGenesis(info GenesisInfo) *Genesis {
 	if info.Difficult <= 0 {
 		info.Difficult = 1
 	}
-
-	statedb, err := getStateDB(info)
-	if err != nil {
-		panic(err)
-	}
-
-	stateRootHash, err := statedb.Hash()
-	if err != nil {
-		panic(err)
-	}
-
+	
 	extraData := genesisExtraData{info.ShardNumber}
 
 	return &Genesis{
 		header: &types.BlockHeader{
 			PreviousBlockHash: common.EmptyHash,
 			Creator:           common.EmptyAddress,
-			StateHash:         stateRootHash,
+		//	StateHash:         stateRootHash,
 			TxHash:            types.MerkleRootHash(nil),
 			Difficulty:        big.NewInt(info.Difficult),
 			Height:            genesisBlockHeight,
