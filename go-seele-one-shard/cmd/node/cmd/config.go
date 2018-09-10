@@ -11,13 +11,13 @@ import (
 	"math/big"
 	"path/filepath"
 
-	"github.com/seeleteam/go-seele/common"
-	"github.com/seeleteam/go-seele/core"
-	"github.com/seeleteam/go-seele/crypto"
-	"github.com/seeleteam/go-seele/log/comm"
-	"github.com/seeleteam/go-seele/metrics"
-	"github.com/seeleteam/go-seele/node"
-	"github.com/seeleteam/go-seele/p2p"
+	"github.com/seeleteam/go-seele-one-shard/common"
+	"github.com/seeleteam/go-seele-one-shard/core"
+	"github.com/seeleteam/go-seele-one-shard/crypto"
+	"github.com/seeleteam/go-seele-one-shard/log/comm"
+	"github.com/seeleteam/go-seele-one-shard/metrics"
+	"github.com/seeleteam/go-seele-one-shard/node"
+	"github.com/seeleteam/go-seele-one-shard/p2p"
 )
 
 // Config is the Configuration of node

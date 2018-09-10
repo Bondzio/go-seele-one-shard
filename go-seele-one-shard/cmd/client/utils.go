@@ -10,12 +10,12 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/seeleteam/go-seele/cmd/util"
-	"github.com/seeleteam/go-seele/common"
-	"github.com/seeleteam/go-seele/common/hexutil"
-	"github.com/seeleteam/go-seele/core/types"
-	"github.com/seeleteam/go-seele/crypto"
-	"github.com/seeleteam/go-seele/rpc2"
+	"github.com/seeleteam/go-seele-one-shard/cmd/util"
+	"github.com/seeleteam/go-seele-one-shard/common"
+	"github.com/seeleteam/go-seele-one-shard/common/hexutil"
+	"github.com/seeleteam/go-seele-one-shard/core/types"
+	"github.com/seeleteam/go-seele-one-shard/crypto"
+	"github.com/seeleteam/go-seele-one-shard/rpc2"
 )
 
 const (
