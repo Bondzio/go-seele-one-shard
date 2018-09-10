@@ -42,8 +42,8 @@ type SeeleService struct {
 	accountStateDBRootHash common.Hash
 	miner          *miner.Miner
 
-	lastHeader               common.Hash
-	chainHeaderChangeChannel chan common.Hash
+	lastHeaders              [numOfChains]common.Hash
+	chainHeaderChangeChannels [numOfChains]chan common.Hash
 }
 
 // ServiceContext is a collection of service configuration inherited from node
@@ -171,19 +171,21 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 
 func (s *SeeleService) initPool(conf *node.Config) error {
 	var err error
-	s.lastHeader, err = s.chain.GetStore().GetHeadBlockHash()
-	if err != nil {
-		return fmt.Errorf("failed to get chain header, %s", err)
+	for i := 0; i < numOfChains; i++ {
+		s.lastHeaders[i], err = s.chains[i].GetStore().GetHeadBlockHash()
+		if err != nil {
+			return fmt.Errorf("failed to get chain header, %s", err)
+		}
+
+		s.chainHeaderChangeChannels = make(chan common.Hash, chainHeaderChangeBuffSize)
+		//s.debtPool = core.NewDebtPool(s.chain)
+		s.txPools[i] = core.NewTransactionPool(conf.SeeleConfig.TxConf, s.chains[i])
+
+		event.ChainHeaderChangedEventMananger.AddAsyncListener(s.chainHeaderChanged)
+		go s.MonitorChainHeaderChange()
+
+		return nil
 	}
-
-	s.chainHeaderChangeChannel = make(chan common.Hash, chainHeaderChangeBuffSize)
-	s.debtPool = core.NewDebtPool(s.chain)
-	s.txPool = core.NewTransactionPool(conf.SeeleConfig.TxConf, s.chain)
-
-	event.ChainHeaderChangedEventMananger.AddAsyncListener(s.chainHeaderChanged)
-	go s.MonitorChainHeaderChange()
-
-	return nil
 }
 
 // chainHeaderChanged handle chain header changed event.

@@ -54,10 +54,11 @@ type TransactionPool struct {
 	pendingQueue  *pendingQueue
 	processingTxs map[common.Hash]struct{}
 	log           *log.SeeleLog
+	chainNum      uint
 }
 
 // NewTransactionPool creates and returns a transaction pool.
-func NewTransactionPool(config TransactionPoolConfig, chain blockchain) *TransactionPool {
+func NewTransactionPool(config TransactionPoolConfig, chain blockchain, chainNum uint) *TransactionPool {
 	pool := &TransactionPool{
 		config:        config,
 		chain:         chain,
@@ -65,6 +66,7 @@ func NewTransactionPool(config TransactionPoolConfig, chain blockchain) *Transac
 		pendingQueue:  newPendingQueue(),
 		processingTxs: make(map[common.Hash]struct{}),
 		log:           log.GetLogger("txpool"),
+		chainNum:      chainNum,
 	}
 
 	return pool
