@@ -177,12 +177,12 @@ func (s *SeeleService) initPool(conf *node.Config) error {
 			return fmt.Errorf("failed to get chain header, %s", err)
 		}
 
-		s.chainHeaderChangeChannels = make(chan common.Hash, chainHeaderChangeBuffSize)
+		s.chainHeaderChangeChannels[i] = make(chan common.Hash, chainHeaderChangeBuffSize)
 		//s.debtPool = core.NewDebtPool(s.chain)
 		s.txPools[i] = core.NewTransactionPool(conf.SeeleConfig.TxConf, s.chains[i])
 
 		event.ChainHeaderChangedEventMananger.AddAsyncListener(s.chainHeaderChanged)
-		go s.MonitorChainHeaderChange()
+		go s.MonitorChainHeaderChange(i)
 
 		return nil
 	}
@@ -196,22 +196,22 @@ func (s *SeeleService) chainHeaderChanged(e event.Event) {
 	if newHeader.IsEmpty() {
 		return
 	}
-
-	s.chainHeaderChangeChannel <- newHeader
+	chainNum := e.(uint)
+	s.chainHeaderChangeChannels[chainNum] <- newHeader
 }
 
 // MonitorChainHeaderChange monitor and handle chain header event
-func (s *SeeleService) MonitorChainHeaderChange() {
+func (s *SeeleService) MonitorChainHeaderChange(chainNum uint) {
 	for {
 		select {
-		case newHeader := <-s.chainHeaderChangeChannel:
+		case newHeader := <-s.chainHeaderChangeChannels[chainNum]:
 			if s.lastHeader.IsEmpty() {
 				s.lastHeader = newHeader
 				return
 			}
 
-			s.txPool.HandleChainHeaderChanged(newHeader, s.lastHeader)
-			s.debtPool.HandleChainHeaderChanged(newHeader, s.lastHeader)
+			s.txPools[chainNum].HandleChainHeaderChanged(newHeader, s.lastHeader)
+			//s.debtPool.HandleChainHeaderChanged(newHeader, s.lastHeader)
 
 			s.lastHeader = newHeader
 		}

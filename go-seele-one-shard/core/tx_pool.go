@@ -179,8 +179,8 @@ func (pool *TransactionPool) AddTransaction(tx *types.Transaction) error {
 	if tx == nil {
 		return nil
 	}
-
-	statedb, err := pool.chain.GetCurrentState()
+	// TODO: make sure this state is locked
+	statedb, err := core.GetCurrentState()
 	if err != nil {
 		return fmt.Errorf("get current state db failed, error %s", err)
 	}
@@ -254,7 +254,8 @@ func (pool *TransactionPool) removeTransactions() {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
-	state, err := pool.chain.GetCurrentState()
+	// TODO: make sure the state is locked
+	state, err := core.GetCurrentState()
 	if err != nil {
 		pool.log.Warn("failed to get current state, err: %s", err)
 		return
