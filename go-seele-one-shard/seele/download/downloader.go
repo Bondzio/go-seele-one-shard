@@ -90,9 +90,9 @@ type Downloader struct {
 	peers      map[string]*peerConn // peers map. peerID=>peer
 
 	syncStatus int
-	tm         *taskMgr
+	tm         []*taskMgr
 
-	chain     *core.Blockchain
+	chain     []*core.Blockchain
 	sessionWG sync.WaitGroup
 	log       *log.SeeleLog
 	lock      sync.RWMutex
@@ -111,7 +111,7 @@ type BlocksMsgBody struct {
 }
 
 // NewDownloader create Downloader
-func NewDownloader(chain *core.Blockchain) *Downloader {
+func NewDownloader(chain []*core.Blockchain) *Downloader {
 	d := &Downloader{
 		cancelCh:   make(chan struct{}),
 		peers:      make(map[string]*peerConn),
@@ -372,8 +372,10 @@ func (d *Downloader) RegisterPeer(peerID string, peer Peer) {
 	d.peers[peerID] = newConn
 
 	if d.syncStatus == statusFetching {
-		d.sessionWG.Add(1)
-		go d.peerDownload(newConn, d.tm)
+		for i := 0; i < numOfChains; i++ {
+			d.sessionWG.Add(1)
+			go d.peerDownload(newConn, d.tm[i])
+		}
 	}
 }
 
@@ -439,7 +441,7 @@ outLoop:
 
 			d.log.Debug("request header by number. start %d, amount %d", startNo, amount)
 			magic := rand2.Uint32()
-			if err = conn.peer.RequestHeadersByHashOrNumber(magic, common.Hash{}, startNo, amount, false); err != nil {
+			if err = conn.peer.RequestHeadersByHashOrNumber(magic, common.Hash{}, tm.chainNum, startNo, amount, false); err != nil {
 				d.log.Warn("RequestHeadersByHashOrNumber err! %s pid=%s", err, peerID)
 				break
 			}
@@ -472,7 +474,7 @@ outLoop:
 
 			d.log.Debug("request block by number. start %d, amount %d", startNo, amount)
 			magic := rand2.Uint32()
-			if err = conn.peer.RequestBlocksByHashOrNumber(magic, common.Hash{}, startNo, amount); err != nil {
+			if err = conn.peer.RequestBlocksByHashOrNumber(magic, common.Hash{}, tm.chainNum, startNo, amount); err != nil {
 				d.log.Warn("RequestBlocksByHashOrNumber err! %s", err)
 				break
 			}

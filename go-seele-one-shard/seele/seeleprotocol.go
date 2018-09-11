@@ -71,9 +71,9 @@ type SeeleProtocol struct {
 
 	networkID  uint64
 	downloader *downloader.Downloader
-	txPool     *core.TransactionPool
+	txPool     []*core.TransactionPool
 	debtPool   *core.DebtPool
-	chain      *core.Blockchain
+	chain      []*core.Blockchain
 
 	wg     sync.WaitGroup
 	quitCh chan struct{}
@@ -182,10 +182,10 @@ func (sp *SeeleProtocol) synchronise(p *peer) {
 	sp.broadcastChainHead()
 }
 
-func (sp *SeeleProtocol) broadcastChainHead() {
-	block := sp.chain.CurrentBlock()
+func (sp *SeeleProtocol) broadcastChainHead(chainNum uint) {
+	block := sp.chain[chainNum].CurrentBlock()
 	head := block.HeaderHash
-	localTD, err := sp.chain.GetStore().GetBlockTotalDifficulty(head)
+	localTD, err := sp.chain[chainNum].GetStore().GetBlockTotalDifficulty(head)
 	if err != nil {
 		sp.log.Error("broadcastChainHead GetBlockTotalDifficulty err. %s", err)
 		return
@@ -194,6 +194,7 @@ func (sp *SeeleProtocol) broadcastChainHead() {
 	status := &chainHeadStatus{
 		TD:           localTD,
 		CurrentBlock: head,
+		chainNum:     chainNum,
 	}
 	sp.peerSet.ForEach(common.LocalShardNumber, func(peer *peer) bool {
 		err := peer.sendHeadStatus(status)
@@ -208,7 +209,12 @@ func (sp *SeeleProtocol) broadcastChainHead() {
 func (sp *SeeleProtocol) syncTransactions(p *peer) {
 	defer sp.wg.Done()
 	sp.wg.Add(1)
-	pending := sp.txPool.GetTransactions(false, true)
+
+	var pending []*types.Transaction
+ 	for i := 0; i < numOfChains; i++ {
+ 		pendingInOnePool := sp.txPool[i].GetTransactions(false, true)
+ 		pending = append(pending, pendingInOnePool...)
+ 	}
 
 	sp.log.Debug("syncTransactions peerid:%s pending length:%d", p.peerStrID, len(pending))
 	if len(pending) == 0 {
@@ -292,6 +298,7 @@ func (p *SeeleProtocol) propagateDebtMap(debtsMap [][]*types.Debt) {
 
 func (p *SeeleProtocol) handleNewMinedBlock(e event.Event) {
 	block := e.(*types.Block)
+	chainNum := e.(uint)
 
 	p.peerSet.ForEach(common.LocalShardNumber, func(peer *peer) bool {
 		err := peer.SendBlockHash(block.HeaderHash)
@@ -304,19 +311,19 @@ func (p *SeeleProtocol) handleNewMinedBlock(e event.Event) {
 	// propagate confirmed block
 	if block.Header.Height > common.ConfirmedBlockNumber {
 		confirmedHeight := block.Header.Height - common.ConfirmedBlockNumber
-		confirmedBlock, err := p.chain.GetStore().GetBlockByHeight(confirmedHeight)
+		confirmedBlock, err := p.chain[chainNum].GetStore().GetBlockByHeight(confirmedHeight)
 		if err != nil {
 			p.log.Warn("failed to load confirmed block height %d, err %s", confirmedHeight, err)
 		}
 
-		debts := types.NewDebtMap(confirmedBlock.Transactions)
-		p.propagateDebtMap(debts)
+		//debts := types.NewDebtMap(confirmedBlock.Transactions)
+		//p.propagateDebtMap(debts)
 	}
 
 	p.log.Debug("handleNewMinedBlock broadcast chainhead changed. new block: %d %s <- %s ",
 		block.Header.Height, block.HeaderHash.ToHex(), block.Header.PreviousBlockHash.ToHex())
 
-	p.broadcastChainHead()
+	p.broadcastChainHead(chainNum)
 }
 
 func (p *SeeleProtocol) handleAddPeer(p2pPeer *p2p.Peer, rw p2p.MsgReadWriter) {
@@ -327,14 +334,19 @@ func (p *SeeleProtocol) handleAddPeer(p2pPeer *p2p.Peer, rw p2p.MsgReadWriter) {
 
 	newPeer := newPeer(SeeleVersion, p2pPeer, rw, p.log)
 
-	block := p.chain.CurrentBlock()
-	head := block.HeaderHash
-	localTD, err := p.chain.GetStore().GetBlockTotalDifficulty(head)
-	if err != nil {
-		return
-	}
+	block := make([]*types.Block,numOfChains)
+ 	head := make([]common.Hash,numOfChains)
+ 	localTD := make([]*big.Int,numOfChains)
+ 	for i := 0; i < numOfChains; i++ {
+ 		block[i] = p.chains[i].CurrentBlock()
+ 		head[i] = block[i].HeaderHash
+ 		localTD[i], err = p.chains[i].GetStore().GetBlockTotalDifficulty(head[i])
+ 		if err != nil {
+ 			return
+ 		}
+ 	}
 
-	genesisBlock, err := p.chain.GetStore().GetBlockByHeight(0)
+	genesisBlock, err := p.chains[0].GetStore().GetBlockByHeight(0)
 	if err != nil {
 		return
 	}

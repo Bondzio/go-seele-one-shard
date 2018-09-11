@@ -48,8 +48,8 @@ type peer struct {
 	peerID    common.Address // id of the peer
 	peerStrID string
 	version   uint // Seele protocol version negotiated
-	head      common.Hash
-	td        *big.Int // total difficulty
+	head      []common.Hash
+	td        []*big.Int // total difficulty
 	lock      sync.RWMutex
 
 	rw p2p.MsgReadWriter // the read write method for this peer
@@ -81,10 +81,15 @@ func newPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, log *log.SeeleLog)
 		panic(err)
 	}
 
+	tds := make([]*big.Int, numOfChains)
+ 	for i := 0; i < numOfChains; i++ {
+ 		tds[i] = big.NewInt(0)
+	}
+	 
 	return &peer{
 		Peer:        p,
 		version:     version,
-		td:          big.NewInt(0),
+		td:          tds,
 		peerID:      p.Node.ID,
 		peerStrID:   idToStr(p.Node.ID),
 		knownTxs:    knownTxsCache,
@@ -97,12 +102,12 @@ func newPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, log *log.SeeleLog)
 
 // Info gathers and returns a collection of metadata known about a peer.
 func (p *peer) Info() *PeerInfo {
-	hash, td := p.Head()
+//	hash, td := p.Head()
 
 	return &PeerInfo{
 		Version:    p.version,
-		Difficulty: td,
-		Head:       hex.EncodeToString(hash[0:]),
+//		Difficulty: td,
+//		Head:       hex.EncodeToString(hash[0:]),
 	}
 }
 
@@ -204,6 +209,14 @@ func (p *peer) Head() (hash common.Hash, td *big.Int) {
 	return hash, new(big.Int).Set(p.td)
 }
 
+func (p *peer) HeadByChain(chainNum uint) (hash common.Hash, td *big.Int) {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+
+	copy(hash[:], p.head[chainNum][:])
+	return hash, new(big.Int).Set(p.td[chainNum])
+}
+
 // SetHead updates the head hash and total difficulty of the peer.
 func (p *peer) SetHead(hash common.Hash, td *big.Int) {
 	p.lock.Lock()
@@ -215,13 +228,14 @@ func (p *peer) SetHead(hash common.Hash, td *big.Int) {
 
 // RequestHeadersByHashOrNumber fetches a batch of blocks' headers corresponding to the
 // specified header query, based on the hash of an origin block.
-func (p *peer) RequestHeadersByHashOrNumber(magic uint32, origin common.Hash, num uint64, amount int, reverse bool) error {
+func (p *peer) RequestHeadersByHashOrNumber(magic uint32, origin common.Hash, chainNum uint, num uint64, amount int, reverse bool) error {
 	query := &blockHeadersQuery{
 		Magic:   magic,
 		Hash:    origin,
 		Number:  num,
 		Amount:  uint64(amount),
 		Reverse: reverse,
+		chainNum: chainNum,
 	}
 
 	buff := common.SerializePanic(query)
@@ -242,12 +256,13 @@ func (p *peer) sendBlockHeaders(magic uint32, headers []*types.BlockHeader) erro
 
 // RequestBlocksByHashOrNumber fetches a batch of blocks corresponding to the
 // specified header query, based on the hash of an origin block.
-func (p *peer) RequestBlocksByHashOrNumber(magic uint32, origin common.Hash, num uint64, amount int) error {
+func (p *peer) RequestBlocksByHashOrNumber(magic uint32, origin common.Hash, chainNum uint, num uint64, amount int) error {
 	query := &blocksQuery{
 		Magic:  magic,
 		Hash:   origin,
 		Number: num,
 		Amount: uint64(amount),
+		chainNum: chainNum,
 	}
 	buff := common.SerializePanic(query)
 
@@ -278,7 +293,7 @@ func (p *peer) sendHeadStatus(msg *chainHeadStatus) error {
 }
 
 // handShake exchange networkid td etc between two connected peers.
-func (p *peer) handShake(networkID uint64, td *big.Int, head common.Hash, genesis common.Hash, difficult uint64) error {
+func (p *peer) handShake(networkID uint64, td []*big.Int, head []common.Hash, genesis common.Hash, difficult uint64) error {
 	msg := &statusData{
 		ProtocolVersion: uint32(SeeleVersion),
 		NetworkID:       networkID,
