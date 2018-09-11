@@ -214,10 +214,9 @@ func (bc *Blockchain) GetCurrentState() (*state.Statedb, error) {
 }
 
 // GetCurrentInfo return the current block and current state info
-func (bc *Blockchain) GetCurrentInfo() (*types.Block, *state.Statedb, error) {
+func (bc *Blockchain) GetCurrentInfo() (*types.Block, error) {
 	block := bc.CurrentBlock()
-	statedb, err := state.NewStatedb(block.Header.StateHash, bc.accountStateDB)
-	return block, statedb, err
+	return block, err
 }
 
 // WriteBlock writes the specified block to the blockchain store.

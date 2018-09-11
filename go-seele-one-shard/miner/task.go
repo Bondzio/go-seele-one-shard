@@ -26,13 +26,16 @@ type Task struct {
 
 	createdAt time.Time
 	coinbase  common.Address
+
+	chainNum  uint64
 }
 
 // applyTransactionsAndDebts TODO need to check more about the transactions, such as gas limit
 func (task *Task) applyTransactionsAndDebts(seele SeeleBackend, statedb *state.Statedb, log *log.SeeleLog) error {
 	// choose transactions from the given txs
-	size := task.chooseDebts(seele, statedb, log)
-
+	//size := task.chooseDebts(seele, statedb, log)
+	size := 0
+	
 	// the reward tx will always be at the first of the block's transactions
 	reward, err := task.handleMinerRewardTx(statedb)
 	if err != nil {
@@ -41,8 +44,8 @@ func (task *Task) applyTransactionsAndDebts(seele SeeleBackend, statedb *state.S
 
 	task.chooseTransactions(seele, statedb, log, size)
 
-	log.Info("mining block height:%d, reward:%s, transaction number:%d, debt number: %d",
-		task.header.Height, reward, len(task.txs), len(task.debts))
+	log.Info("mining block height:%d, reward:%s, transaction number:%d",
+		task.header.Height, reward, len(task.txs))
 
 	root, err := statedb.Hash()
 	if err != nil {

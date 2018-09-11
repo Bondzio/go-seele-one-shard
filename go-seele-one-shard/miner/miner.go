@@ -273,7 +273,11 @@ func (miner *Miner) prepareNewBlock(chainNum uint64) error {
 	miner.log.Debug("starting mining the new block")
 
 	timestamp := time.Now().Unix()
-	parent, stateDB, err := miner.seele.BlockChain().GetCurrentInfo()
+	
+	//TODO: get current stateDB
+
+	blockchains := miner.seele.Blockchain()
+	parent, err := blockchains[chainNum].GetCurrentInfo()
 	if err != nil {
 		return fmt.Errorf("failed to get current info, %s", err)
 	}
@@ -304,6 +308,7 @@ func (miner *Miner) prepareNewBlock(chainNum uint64) error {
 		header:    header,
 		createdAt: time.Now(),
 		coinbase:  miner.coinbase,
+		chainNum:  chainNum,
 	}
 
 	err = miner.current.applyTransactionsAndDebts(miner.seele, stateDB, miner.log)
