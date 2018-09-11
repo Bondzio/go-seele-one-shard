@@ -129,16 +129,16 @@ type Blockchain struct {
 
 	rp *recoveryPoint // used to recover blockchain in case of program crashed when write a block
 
-	chainNum      uint
+	chainNum      uint64
 }
 
 // NewBlockchain returns an initialized blockchain with the given store and account state DB.
-func NewBlockchain(bcStore store.BlockchainStore, recoveryPointFile string, chainNum uint) (*Blockchain, error) {
+func NewBlockchain(bcStore store.BlockchainStore, recoveryPointFile string, chainNum uint64) (*Blockchain, error) {
 	bc := &Blockchain{
 		bcStore:        bcStore,
 		engine:         &pow.Engine{},
 		log:            log.GetLogger("blockchain"),
-		chainNum:       uint,
+		chainNum:       chainNum,
 	}
 
 	var err error

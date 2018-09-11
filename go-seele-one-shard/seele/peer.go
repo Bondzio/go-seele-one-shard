@@ -209,7 +209,7 @@ func (p *peer) Head() (hash common.Hash, td *big.Int) {
 	return hash, new(big.Int).Set(p.td)
 }
 
-func (p *peer) HeadByChain(chainNum uint) (hash common.Hash, td *big.Int) {
+func (p *peer) HeadByChain(chainNum uint64) (hash common.Hash, td *big.Int) {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
@@ -228,7 +228,7 @@ func (p *peer) SetHead(hash common.Hash, td *big.Int) {
 
 // RequestHeadersByHashOrNumber fetches a batch of blocks' headers corresponding to the
 // specified header query, based on the hash of an origin block.
-func (p *peer) RequestHeadersByHashOrNumber(magic uint32, origin common.Hash, chainNum uint, num uint64, amount int, reverse bool) error {
+func (p *peer) RequestHeadersByHashOrNumber(magic uint32, origin common.Hash, chainNum uint64, num uint64, amount int, reverse bool) error {
 	query := &blockHeadersQuery{
 		Magic:   magic,
 		Hash:    origin,
@@ -256,7 +256,7 @@ func (p *peer) sendBlockHeaders(magic uint32, headers []*types.BlockHeader) erro
 
 // RequestBlocksByHashOrNumber fetches a batch of blocks corresponding to the
 // specified header query, based on the hash of an origin block.
-func (p *peer) RequestBlocksByHashOrNumber(magic uint32, origin common.Hash, chainNum uint, num uint64, amount int) error {
+func (p *peer) RequestBlocksByHashOrNumber(magic uint32, origin common.Hash, chainNum uint64, num uint64, amount int) error {
 	query := &blocksQuery{
 		Magic:  magic,
 		Hash:   origin,

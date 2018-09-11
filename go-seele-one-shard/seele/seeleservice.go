@@ -196,12 +196,12 @@ func (s *SeeleService) chainHeaderChanged(e event.Event) {
 	if newHeader.IsEmpty() {
 		return
 	}
-	chainNum := e.(uint)
+	chainNum := e.(uint64)
 	s.chainHeaderChangeChannels[chainNum] <- newHeader
 }
 
 // MonitorChainHeaderChange monitor and handle chain header event
-func (s *SeeleService) MonitorChainHeaderChange(chainNum uint) {
+func (s *SeeleService) MonitorChainHeaderChange(chainNum uint64) {
 	for {
 		select {
 		case newHeader := <-s.chainHeaderChangeChannels[chainNum]:

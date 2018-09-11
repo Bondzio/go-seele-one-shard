@@ -182,7 +182,7 @@ func (sp *SeeleProtocol) synchronise(p *peer) {
 	sp.broadcastChainHead()
 }
 
-func (sp *SeeleProtocol) broadcastChainHead(chainNum uint) {
+func (sp *SeeleProtocol) broadcastChainHead(chainNum uint64) {
 	block := sp.chain[chainNum].CurrentBlock()
 	head := block.HeaderHash
 	localTD, err := sp.chain[chainNum].GetStore().GetBlockTotalDifficulty(head)
@@ -298,7 +298,7 @@ func (p *SeeleProtocol) propagateDebtMap(debtsMap [][]*types.Debt) {
 
 func (p *SeeleProtocol) handleNewMinedBlock(e event.Event) {
 	block := e.(*types.Block)
-	chainNum := e.(uint)
+	chainNum := e.(uint64)
 
 	p.peerSet.ForEach(common.LocalShardNumber, func(peer *peer) bool {
 		err := peer.SendBlockHash(block.HeaderHash)

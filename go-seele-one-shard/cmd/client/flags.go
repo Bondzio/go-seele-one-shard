@@ -6,7 +6,7 @@
 package main
 
 import (
-	"github.com/seeleteam/go-seele/common"
+	"github.com/seeleteam/go-seele-one-shard/common"
 	"github.com/urfave/cli"
 )
 

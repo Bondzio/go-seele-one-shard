@@ -15,6 +15,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"encoding/binary"
 
 	metrics "github.com/rcrowley/go-metrics"
 	"github.com/seeleteam/go-seele/common"
@@ -22,6 +23,7 @@ import (
 	"github.com/seeleteam/go-seele/core/types"
 	"github.com/seeleteam/go-seele/event"
 	"github.com/seeleteam/go-seele/log"
+	"github.com/seeleteam/go-seele/crypto"
 	"github.com/seeleteam/go-seele/miner/pow"
 )
 
@@ -34,6 +36,11 @@ var (
 
 	// ErrNodeIsSyncing is returned when the node is syncing
 	ErrNodeIsSyncing = errors.New("can not start miner when syncing")
+)
+
+const (
+	// number of chains
+	numOfChains = 10
 )
 
 // SeeleBackend wraps all methods required for minier.
@@ -133,7 +140,7 @@ func (miner *Miner) Start() error {
 	miner.log.Info("miner start with %d threads", miner.threads)
 	miner.stopChan = make(chan struct{})
 
-	if err := miner.prepareNewBlock(); err != nil { // try to prepare the first block
+	if err := miner.NewMiningLoop(); err != nil { // try to start the mining loop
 		miner.log.Warn(err.Error())
 		atomic.StoreInt32(&miner.mining, 0)
 
@@ -262,7 +269,7 @@ out:
 }
 
 // prepareNewBlock prepares a new block to be mined
-func (miner *Miner) prepareNewBlock() error {
+func (miner *Miner) prepareNewBlock(chainNum uint64) error {
 	miner.log.Debug("starting mining the new block")
 
 	timestamp := time.Now().Unix()
@@ -361,4 +368,51 @@ func (miner *Miner) commitTask(task *Task) {
 // Hashrate returns the rate of the POW search invocations per second in the last minute.
 func (miner *Miner) Hashrate() float64 {
 	return miner.hashrate.Rate1()
+}
+
+func (miner *Miner) NewMiningLoop() error {
+	var miningKeyHashInt *big.Int
+
+	// try to get a random key from previous transactions and 
+	// determine which chain the miner will work on
+	// TODO: create miner.getMiningKey and getShardByMiningKey 	
+	miningKeyHash, err:= miner.getMiningKey()
+	if err != nil {
+		miner.log.Info("Failed to get the mining key")
+		return err
+	}
+	miningKeyHashInt.SetBytes(miningKeyHash.Bytes())
+	chainNum := miner.getChainNumByMiningKey(miningKeyHashInt)
+
+	// try to prepare the new block on a certain chain
+	if err := miner.prepareNewBlock(chainNum); err != nil {
+		return err
+	}
+	
+	return nil
+} 
+
+// TODO: generate the mining key from the historical data
+func (miner *Miner) getMiningKey() (common.Hash, error) {
+
+	rand.Seed(time.Now().UnixNano())
+	x := rand.Intn(100000)
+	MiningKeyHash := crypto.HashBytes(int2bytes(x))
+
+	return MiningKeyHash, nil
+
+}
+
+func (miner *Miner) getChainNumByMiningKey(miningKeyHashInt *big.Int) uint64 {
+
+	result := new(big.Int)
+	result := result.Mod(miningKeyHashInt, big.NewInt(numOfChains))
+	chainNum := result.uint64()
+	return chainNum
+}
+
+func int2bytes(num int) (b []byte) {
+	b = make([]byte, 4)
+	binary.BigEndian.PutUint32(b, uint32(num))
+	return
 }

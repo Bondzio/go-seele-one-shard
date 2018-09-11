@@ -62,10 +62,10 @@ type taskMgr struct {
 	wg         sync.WaitGroup
 	log        *log.SeeleLog
 	startTime  time.Time
-	chainNum   uint
+	chainNum   uint64
 }
 
-func newTaskMgr(d *Downloader, masterPeer string, chainNum uint, from uint64, to uint64) *taskMgr {
+func newTaskMgr(d *Downloader, masterPeer string, chainNum uint64, from uint64, to uint64) *taskMgr {
 	t := &taskMgr{
 		log:              d.log,
 		downloader:       d,
