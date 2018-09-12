@@ -63,9 +63,10 @@ type Block struct {
 // array is copied, but each transaction is not copied.
 // So any change of the input transaction will affect the block.
 // The input receipt array is the same behavior with transation array.
-func NewBlock(header *BlockHeader, txs []*Transaction, receipts []*Receipt, debts []*Debt) *Block {
+func NewBlock(header *BlockHeader, txs []*Transaction, receipts []*Receipt, debts []*Debt, chainNum uint64) *Block {
 	block := &Block{
 		Header: header.Clone(),
+		chainNum: chainNum,
 	}
 
 	// Copy the transactions and update the transaction trie root hash.

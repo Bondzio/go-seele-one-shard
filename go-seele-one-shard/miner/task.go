@@ -34,8 +34,8 @@ type Task struct {
 func (task *Task) applyTransactionsAndDebts(seele SeeleBackend, statedb *state.Statedb, log *log.SeeleLog) error {
 	// choose transactions from the given txs
 	//size := task.chooseDebts(seele, statedb, log)
-	size := 0
-	
+	size := core.BlockByteLimit
+
 	// the reward tx will always be at the first of the block's transactions
 	reward, err := task.handleMinerRewardTx(statedb)
 	if err != nil {
@@ -105,23 +105,27 @@ func (task *Task) handleMinerRewardTx(statedb *state.Statedb) (*big.Int, error) 
 func (task *Task) chooseTransactions(seele SeeleBackend, statedb *state.Statedb, log *log.SeeleLog, size int) {
 	txIndex := 1 // the first tx is miner reward
 
+	
 	for size > 0 {
-		txs, txsSize := seele.TxPool().GetProcessableTransactions(size)
+		
+		TxPools := seele.TxPool()
+		Blockchains := seele.BlockChain()
+		txs, txsSize := TxPools[task.chainNum].GetProcessableTransactions(size)
 		if len(txs) == 0 {
 			break
 		}
 
 		for _, tx := range txs {
 			if err := tx.Validate(statedb); err != nil {
-				seele.TxPool().RemoveTransaction(tx.Hash)
+				TxPools[task.chainNum].RemoveTransaction(tx.Hash)
 				log.Error("failed to validate tx %s, for %s", tx.Hash.ToHex(), err)
 				txsSize = txsSize - tx.Size()
 				continue
 			}
 
-			receipt, err := seele.BlockChain().ApplyTransaction(tx, txIndex, task.coinbase, statedb, task.header)
+			receipt, err := Blockchains[chainNum].ApplyTransaction(tx, txIndex, task.coinbase, statedb, task.header)
 			if err != nil {
-				seele.TxPool().RemoveTransaction(tx.Hash)
+				TxPools[task.chainNum].RemoveTransaction(tx.Hash)
 				log.Error("failed to apply tx %s, %s", tx.Hash.ToHex(), err)
 				txsSize = txsSize - tx.Size()
 				continue
@@ -138,7 +142,7 @@ func (task *Task) chooseTransactions(seele SeeleBackend, statedb *state.Statedb,
 
 // generateBlock builds a block from task
 func (task *Task) generateBlock() *types.Block {
-	return types.NewBlock(task.header, task.txs, task.receipts, task.debts)
+	return types.NewBlock(task.header, task.txs, task.receipts, task.debts, task.chainNum)
 }
 
 // Result is the result mined by engine. It contains the raw task and mined block.
