@@ -16,15 +16,13 @@ import (
 
 // BlockIndex is the index of the block chain
 type BlockIndex struct {
-	state           *state.Statedb
 	currentBlock    *types.Block
 	totalDifficulty *big.Int
 }
 
 // NewBlockIndex constructs and returns a BlockIndex instance
-func NewBlockIndex(state *state.Statedb, block *types.Block, td *big.Int) *BlockIndex {
+func NewBlockIndex(block *types.Block, td *big.Int) *BlockIndex {
 	return &BlockIndex{
-		state:           state,
 		currentBlock:    block,
 		totalDifficulty: td,
 	}

@@ -48,6 +48,8 @@ type SeeleBackend interface {
 	TxPool() *core.TransactionPool
 	BlockChain() *core.Blockchain
 	DebtPool() *core.DebtPool
+	AccountStateDB() database.Database
+	GetCurrentState() (*state.Statedb, error)
 }
 
 // Miner defines base elements of miner
@@ -229,7 +231,7 @@ func (miner *Miner) newTxCallback(e event.Event) {
 
 	// if not mining, start mining
 	if atomic.LoadInt32(&miner.stopped) == 0 && atomic.LoadInt32(&miner.canStart) == 1 && atomic.CompareAndSwapInt32(&miner.mining, 0, 1) {
-		if err := miner.prepareNewBlock(); err != nil {
+		if err := miner.NewMiningLoop(); err != nil {
 			miner.log.Warn(err.Error())
 			atomic.StoreInt32(&miner.mining, 0)
 		}
@@ -324,7 +326,13 @@ func (miner *Miner) prepareNewBlock(chainNum uint64) error {
 
 // saveBlock saves the block in the given result to the blockchain
 func (miner *Miner) saveBlock(result *Result) error {
-	ret := miner.seele.BlockChain().WriteBlock(result.block)
+	Blockchains := miner.seele.BlockChain()
+	statedb, err := miner.seele.GetCurrentState()
+	accountStateDB := miner.seele.AccountStateDB()
+	if err != nil {
+		return err
+	}
+	ret := Blockchains[result.block.chainNum].WriteBlock(result.block, statedb, accountStateDB)
 	return ret
 }
 

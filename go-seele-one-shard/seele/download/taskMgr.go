@@ -91,7 +91,7 @@ func (t *taskMgr) run() {
 loopOut:
 	for {
 		results := t.getWaitProcessingBlocks()
-		t.downloader.processBlocks(results)
+		t.downloader.processBlocks(results, t.chainNum)
 
 		select {
 		case <-time.After(time.Second):

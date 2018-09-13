@@ -220,9 +220,9 @@ func (bc *Blockchain) GetCurrentInfo() (*types.Block, error) {
 }
 
 // WriteBlock writes the specified block to the blockchain store.
-func (bc *Blockchain) WriteBlock(block *types.Block) error {
+func (bc *Blockchain) WriteBlock(block *types.Block, statedb *state.Statedb, accountStateDB database.Database) error {
 	startWriteBlockTime := time.Now()
-	if err := bc.doWriteBlock(block); err != nil {
+	if err := bc.doWriteBlock(block, statedb, accountStateDB); err != nil {
 		return err
 	}
 	markTime := time.Since(startWriteBlockTime)
@@ -235,7 +235,7 @@ func (bc *Blockchain) WriteHeader(*types.BlockHeader) error {
 	return ErrNotSupported
 }
 
-func (bc *Blockchain) doWriteBlock(block *types.Block) error {
+func (bc *Blockchain) doWriteBlock(block *types.Block, statedb *state.Statedb, accountStateDB database.Database) error {
 	if err := bc.validateBlock(block); err != nil {
 		return err
 	}
@@ -264,9 +264,8 @@ func (bc *Blockchain) doWriteBlock(block *types.Block) error {
 	}
 
 	// Process the txs in the block and check the state root hash.
-	var blockStatedb *state.Statedb
 	var receipts []*types.Receipt
-	if blockStatedb, receipts, err = bc.applyTxs(block, preBlock); err != nil {
+	if blockStatedb, receipts, err = bc.applyTxs(block, preBlock, statedb); err != nil {
 		return err
 	}
 
@@ -284,7 +283,7 @@ func (bc *Blockchain) doWriteBlock(block *types.Block) error {
 	}
 
 	// Validate state root hash.
-	batch := bc.accountStateDB.NewBatch()
+	batch := accountStateDB.NewBatch()
 	committed := false
 	defer func() {
 		if !committed {
@@ -295,10 +294,6 @@ func (bc *Blockchain) doWriteBlock(block *types.Block) error {
 	var stateRootHash common.Hash
 	if stateRootHash, err = blockStatedb.Commit(batch); err != nil {
 		return err
-	}
-
-	if !stateRootHash.Equal(block.Header.StateHash) {
-		return ErrBlockStateHashMismatch
 	}
 
 	// Update block leaves and write the block into store.
@@ -315,7 +310,7 @@ func (bc *Blockchain) doWriteBlock(block *types.Block) error {
 	}
 
 	currentTd := new(big.Int).Add(previousTd, block.Header.Difficulty)
-	blockIndex := NewBlockIndex(blockStatedb, currentBlock, currentTd)
+	blockIndex := NewBlockIndex(currentBlock, currentTd)
 	isHead := bc.blockLeaves.IsBestBlockIndex(blockIndex)
 
 	/////////////////////////////////////////////////////////////////
@@ -365,6 +360,7 @@ func (bc *Blockchain) doWriteBlock(block *types.Block) error {
 	bc.blockLeaves.Add(blockIndex)
 	bc.blockLeaves.RemoveByHash(block.Header.PreviousBlockHash)
 
+	// TODO: add chainNum info in the event?
 	committed = true
 	if isHead {
 		event.ChainHeaderChangedEventMananger.Fire(block.HeaderHash)
@@ -443,13 +439,8 @@ func (bc *Blockchain) GetStore() store.BlockchainStore {
 
 // applyTxs processes the txs in the specified block and returns the new state DB of the block.
 // This method supposes the specified block is validated.
-func (bc *Blockchain) applyTxs(block, preBlock *types.Block) (*state.Statedb, []*types.Receipt, error) {
+func (bc *Blockchain) applyTxs(block, preBlock *types.Block, statedb *state.Statedb) (*state.Statedb, []*types.Receipt, error) {
 	minerRewardTx, err := bc.validateMinerRewardTx(block)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	statedb, err := state.NewStatedb(preBlock.Header.StateHash, bc.accountStateDB)
 	if err != nil {
 		return nil, nil, err
 	}

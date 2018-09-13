@@ -157,7 +157,7 @@ func (d *Downloader) getSyncInfo(info *SyncInfo) {
 }
 
 // Synchronise try to sync with remote peer.
-func (d *Downloader) Synchronise(id string, head common.Hash, td *big.Int, localTD *big.Int) error {
+func (d *Downloader) Synchronise(id string, chainNum uint64, head common.Hash, td *big.Int, localTD *big.Int) error {
 	// Make sure only one routine can pass at once
 	d.lock.Lock()
 
@@ -178,7 +178,7 @@ func (d *Downloader) Synchronise(id string, head common.Hash, td *big.Int, local
 	}
 	d.lock.Unlock()
 
-	err := d.doSynchronise(p, head, td, localTD)
+	err := d.doSynchronise(p, chainNum, head, td, localTD)
 
 	d.lock.Lock()
 	d.syncStatus = statusNone
@@ -189,7 +189,7 @@ func (d *Downloader) Synchronise(id string, head common.Hash, td *big.Int, local
 	return err
 }
 
-func (d *Downloader) doSynchronise(conn *peerConn, head common.Hash, td *big.Int, localTD *big.Int) (err error) {
+func (d *Downloader) doSynchronise(conn *peerConn, chainNum uint64, head common.Hash, td *big.Int, localTD *big.Int) (err error) {
 	d.log.Debug("Downloader.doSynchronise start")
 	event.BlockDownloaderEventManager.Fire(event.DownloaderStartEvent)
 	defer func() {
@@ -203,23 +203,23 @@ func (d *Downloader) doSynchronise(conn *peerConn, head common.Hash, td *big.Int
 	}()
 
 	rand2.Seed(time.Now().UnixNano())
-	latest, err := d.fetchHeight(conn)
+	latest, err := d.fetchHeight(conn, chainNum)
 	if err != nil {
 		return err
 	}
 	height := latest.Height
 
-	ancestor, err := d.findCommonAncestorHeight(conn, height)
+	ancestor, err := d.findCommonAncestorHeight(conn, chainNum, height)
 	if err != nil {
 		return err
 	}
 	d.log.Debug("start task manager from height:%d, target height:%d", ancestor, height)
-	tm := newTaskMgr(d, d.masterPeer, ancestor+1, height)
+	tm := newTaskMgr(d, d.masterPeer, chainNum, ancestor+1, height)
 	d.tm = tm
 	d.lock.Lock()
 	d.syncStatus = statusFetching
 	for _, pConn := range d.peers {
-		_, peerTD := pConn.peer.Head()
+		_, peerTD := pConn.peer.HeadByChain(chainNum)
 		if localTD.Cmp(peerTD) >= 0 {
 			continue
 		}
@@ -245,11 +245,11 @@ func (d *Downloader) doSynchronise(conn *peerConn, head common.Hash, td *big.Int
 }
 
 // fetchHeight gets the latest head of peer
-func (d *Downloader) fetchHeight(conn *peerConn) (*types.BlockHeader, error) {
-	head, _ := conn.peer.Head()
+func (d *Downloader) fetchHeight(conn *peerConn, chainNum uint64) (*types.BlockHeader, error) {
+	head, _ := conn.peer.HeadByChain(chainNum)
 
 	magic := rand2.Uint32()
-	go conn.peer.RequestHeadersByHashOrNumber(magic, head, 0, 1, false)
+	go conn.peer.RequestHeadersByHashOrNumber(magic, head, chainNum, 0, 1, false)
 	msg, err := conn.waitMsg(magic, BlockHeadersMsg, d.cancelCh)
 	if err != nil {
 		return nil, err
@@ -266,9 +266,9 @@ func (d *Downloader) fetchHeight(conn *peerConn) (*types.BlockHeader, error) {
 }
 
 // findCommonAncestorHeight finds the common ancestor height
-func (d *Downloader) findCommonAncestorHeight(conn *peerConn, height uint64) (uint64, error) {
+func (d *Downloader) findCommonAncestorHeight(conn *peerConn, chainNum uint64, height uint64) (uint64, error) {
 	// Get the top height
-	block := d.chain.CurrentBlock()
+	block := d.chain[chainNum].CurrentBlock()
 	localHeight := block.Header.Height
 
 	top := getTop(localHeight, height)
@@ -298,7 +298,7 @@ func (d *Downloader) findCommonAncestorHeight(conn *peerConn, height uint64) (ui
 		// Is ancenstor found
 		for i := 0; i < len(headers); i++ {
 			cmpHeight := headers[i].Height
-			localHash, err := d.chain.GetStore().GetBlockHash(cmpHeight)
+			localHash, err := d.chain[chainNum].GetStore().GetBlockHash(cmpHeight)
 			if err != nil {
 				return 0, err
 			}
@@ -525,11 +525,11 @@ outLoop:
 }
 
 // processBlocks writes blocks to the blockchain.
-func (d *Downloader) processBlocks(headInfos []*downloadInfo) {
+func (d *Downloader) processBlocks(headInfos []*downloadInfo, chainNum uint64) {
 	for _, h := range headInfos {
 		d.log.Debug("height:%d, hash:%s, preHash:%s", h.block.Header.Height, h.block.HeaderHash.ToHex(), h.block.Header.PreviousBlockHash.ToHex())
 
-		if err := d.chain.WriteBlock(h.block); err != nil && err != core.ErrBlockAlreadyExists {
+		if err := d.chain[chainNum].WriteBlock(h.block); err != nil && err != core.ErrBlockAlreadyExists {
 			d.log.Error("failed to write block:%s", err)
 			d.Cancel()
 			break

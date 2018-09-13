@@ -146,8 +146,8 @@ func (sp *SeeleProtocol) syncer() {
 	}
 }
 
-func (sp *SeeleProtocol) synchronise(p *peer) {
-	if p == nil {
+func (sp *SeeleProtocol) synchronise(bestPeers []*bestPeerForEachShard) {
+	if bestPeers == nil {
 		return
 	}
 
@@ -155,31 +155,40 @@ func (sp *SeeleProtocol) synchronise(p *peer) {
 		sp.log.Debug("sp.synchronise called.")
 	}
 
-	block := sp.chain.CurrentBlock()
-	localTD, err := sp.chain.GetStore().GetBlockTotalDifficulty(block.HeaderHash)
-	if err != nil {
-		sp.log.Error("sp.synchronise GetBlockTotalDifficulty err.[%s]", err)
-		return
-	}
-	pHead, pTd := p.Head()
-
-	// if total difficulty is not smaller than remote peer td, then do not need synchronise.
-	if localTD.Cmp(pTd) >= 0 {
-		return
-	}
-
-	err = sp.downloader.Synchronise(p.peerStrID, pHead, pTd, localTD)
-	if err != nil {
-		if err == downloader.ErrIsSynchronising {
-			sp.log.Info("exit synchronise as it is already running.")
-		} else {
-			sp.log.Error("synchronise err. %s", err)
+	//block := sp.chain.CurrentBlock()
+	//localTD, err := sp.chain.GetStore().GetBlockTotalDifficulty(block.HeaderHash)
+	//if err != nil {
+	//	sp.log.Error("sp.synchronise GetBlockTotalDifficulty err.[%s]", err)
+	//	return
+	//}
+	//pHead, pTd := p.Head()
+	
+	for i, bp := range bestPeers {
+		block := sp.chain[i].CurrentBlock()
+		localTD, err := sp.chain[i].GetStore().GetBlockTotalDifficulty(block.HeaderHash)
+		if err != nil {
+			sp.log.Error("sp.synchronise GetBlockTotalDifficulty err.[%s]", err)
+			return
 		}
-		return
-	}
+		pHead, pTd := bp.bestPeer.HeadByChain(bp.chainNum)
+		// if total difficulty is not smaller than remote peer td, then do not need synchronise.
+		if localTD.Cmp(pTd) >= 0 {
+			return
+		}
 
-	//broadcast chain head
-	sp.broadcastChainHead()
+		err = sp.downloader.Synchronise(bp.bestPeer.peerStrID, bp.chainNum, pHead, pTd, localTD)
+		if err != nil {
+			if err == downloader.ErrIsSynchronising {
+				sp.log.Info("exit synchronise as it is already running.")
+			} else {
+				sp.log.Error("synchronise err. %s", err)
+			}
+			return
+		}
+
+		//broadcast chain head
+		sp.broadcastChainHead(bp.chainNum)
+	}
 }
 
 func (sp *SeeleProtocol) broadcastChainHead(chainNum uint64) {

@@ -59,7 +59,7 @@ func (s *SeeleService) Miner() *miner.Miner           { return s.miner }
 func (s *SeeleService) Downloader() *downloader.Downloader {
 	return s.seeleProtocol.Downloader()
 }
-
+func (s *SeeleService) AccountStateDB() database.Database { return s.accountStateDB }
 // GetCurrentState returns the current state of the accounts
 func (s *SeeleService) GetCurrentState() (*state.Statedb, error) {
 	return state.NewStatedb(s.accountStateDBRootHash, s.accountStateDB)

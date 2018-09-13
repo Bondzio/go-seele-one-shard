@@ -56,6 +56,7 @@ type Block struct {
 	Header       *BlockHeader   // Header is the block header, a block header is about 165byte
 	Transactions []*Transaction // Transactions is the block payload
 	Debts        []*Debt        // Debts for cross shard transaction
+	chainNum     uint64
 }
 
 // NewBlock creates a new block. The input header is copied so that

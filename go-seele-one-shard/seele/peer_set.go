@@ -18,6 +18,12 @@ type peerSet struct {
 	lock       sync.RWMutex
 }
 
+type bestPeerForEachChain struct {
+	bestPeer	*peer
+	bestTd		*big.int		// the Td of the peer in this chain	
+	chainNum    uint64	        // the peer is the best in this chain
+}
+
 func newPeerSet() *peerSet {
 	ps := &peerSet{
 		peerMap: make(map[common.Address]*peer),
@@ -31,15 +37,16 @@ func newPeerSet() *peerSet {
 	return ps
 }
 
-func (p *peerSet) bestPeer(shard uint) *peer {
-	var (
-		bestPeer *peer
-		bestTd   *big.Int
-	)
-
+func (p *peerSet) bestPeer(shard uint) []*bestPeerForEachChain {
+	
+	bestPeers := make([]*bestPeerForEachChain, numOfChains)
 	p.ForEach(shard, func(p *peer) bool {
-		if _, td := p.Head(); bestPeer == nil || td.Cmp(bestTd) > 0 {
-			bestPeer, bestTd = p, td
+ 		for i := 0; i < numOfChains; i++ {
+			td := p.HeadByChain(i)   
+			if bestPeers[i] == nil || td.Cmp(bestPeers[i].bestTd) > 0 {
+				bestPeers[i].bestPeer, bestPeers[i].bestTd = p, td
+ 				bestPeers[i].chainNum = i
+ 			}
 		}
 
 		return true
