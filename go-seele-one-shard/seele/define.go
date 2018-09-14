@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/seeleteam/go-seele/common"
+	"github.com/seeleteam/go-seele/core/types"
 )
 
 const (
@@ -74,3 +75,14 @@ type chainHeadStatus struct {
 	TD           *big.Int
 	CurrentBlock common.Hash
 }
+
+type transactionHashMsg struct {
+	txHash 		common.Hash
+	chainNum	uint64
+}
+
+type transactionsMsg struct {
+	txs			[]*types.Transaction
+	chainNum 	uint64
+}
+

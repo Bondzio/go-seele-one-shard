@@ -270,12 +270,14 @@ func (p *SeeleProtocol) handleNewTx(e event.Event) {
 		p.log.Debug("find new tx")
 	}
 
-	tx := e.(*types.Transaction)
-
+	var NewTxHashMsg transactionHashMsg
+	NewTxHashMsg.chainNum := e.(*event.handleNewTxMsg).chainNum
+	NewTxHashMsg.txHash := e.(*event.handleNewTxMsg).tx.Hash
+	
 	// find shardId by tx from address.
 	shardId := tx.Data.From.Shard()
 	p.peerSet.ForEach(shardId, func(peer *peer) bool {
-		if err := peer.sendTransactionHash(tx.Hash); err != nil {
+		if err := peer.sendTransactionHash(NewTxHashMsg); err != nil {
 			p.log.Warn("failed to send transaction to %s, %s", peer.Node.GetUDPAddr(), err)
 		}
 		return true
@@ -430,20 +432,21 @@ handler:
 
 		switch msg.Code {
 		case transactionHashMsgCode:
-			var txHash common.Hash
-			err := common.Deserialize(msg.Payload, &txHash)
+			var txHashMsg transactionHashMsg
+			err := common.Deserialize(msg.Payload, &txHashMsg)
 			if err != nil {
 				p.log.Warn("failed to deserialize transaction hash msg, %s", err.Error())
 				continue
 			}
 
+			txHash := txHashMsg.txHash
 			if common.PrintExplosionLog {
 				p.log.Debug("got tx hash %s", txHash.ToHex())
 			}
 
 			if !peer.knownTxs.Contains(txHash) {
 				peer.knownTxs.Add(txHash, nil) //update peer known transaction
-				err := peer.sendTransactionRequest(txHash)
+				err := peer.sendTransactionRequest(txHashMsg)
 				if err != nil {
 					p.log.Warn("failed to send transaction request msg, %s", err.Error())
 					break handler
@@ -455,37 +458,40 @@ handler:
 			}
 
 		case transactionRequestMsgCode:
-			var txHash common.Hash
-			err := common.Deserialize(msg.Payload, &txHash)
+			var txHashMsg transactionHashMsg
+			err := common.Deserialize(msg.Payload, &txHashMsg)
 			if err != nil {
 				p.log.Warn("failed to deserialize transaction request msg %s", err.Error())
 				continue
 			}
-
+			txHash := txHashMsg.txHash
+			chainNum := txHashMsg.chainNum
 			if common.PrintExplosionLog {
 				p.log.Debug("got tx request %s", txHash.ToHex())
 			}
 
-			tx := p.txPool.GetTransaction(txHash)
+			tx := p.txPool[chainNum].GetTransaction(txHash)
 			if tx == nil {
 				p.log.Debug("[transactionRequestMsgCode] not found tx in tx pool %s", txHash.ToHex())
 				continue
 			}
 
-			err = peer.sendTransaction(tx)
+			err = peer.sendTransaction(tx, chainNum)
 			if err != nil {
 				p.log.Warn("failed to send transaction msg %s", err.Error())
 				break handler
 			}
 
 		case transactionsMsgCode:
-			var txs []*types.Transaction
-			err := common.Deserialize(msg.Payload, &txs)
+			var txsMsg transactionsMsg
+			err := common.Deserialize(msg.Payload, &txsMsg)
 			if err != nil {
 				p.log.Warn("failed to deserialize transaction msg %s", err.Error())
 				break
 			}
 
+			txs := txsMsg.txs
+			chainNum := txsMsg.chainNum
 			if common.PrintExplosionLog {
 				p.log.Debug("received %d transactions", len(txs))
 			}
@@ -497,7 +503,7 @@ handler:
 					go p.SendDifferentShardTx(tx, shard)
 					continue
 				} else {
-					p.txPool.AddTransaction(tx)
+					p.txPool[chainNum].AddTransaction(tx)
 				}
 			}
 

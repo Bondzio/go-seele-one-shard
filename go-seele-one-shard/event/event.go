@@ -31,6 +31,11 @@ type handleNewMinedBlockMsg struct {
 	chainNum    uint64
 }
 
+type handleNewTxMsg struct {
+	tx          *types.Transaction
+	chainNum    uint64
+}
+
 // eventListener is a struct which defines a function as a listener
 type eventListener struct {
 	// Callable is a callable function
