@@ -90,7 +90,7 @@ type Downloader struct {
 	peers      map[string]*peerConn // peers map. peerID=>peer
 
 	syncStatus int
-	tm         []*taskMgr
+	tm         [numOfChains]*taskMgr
 
 	chain     []*core.Blockchain
 	sessionWG sync.WaitGroup
@@ -215,7 +215,7 @@ func (d *Downloader) doSynchronise(conn *peerConn, chainNum uint64, head common.
 	}
 	d.log.Debug("start task manager from height:%d, target height:%d", ancestor, height)
 	tm := newTaskMgr(d, d.masterPeer, chainNum, ancestor+1, height)
-	d.tm = tm
+	d.tm[chainNum] = tm
 	d.lock.Lock()
 	d.syncStatus = statusFetching
 	for _, pConn := range d.peers {
@@ -233,8 +233,8 @@ func (d *Downloader) doSynchronise(conn *peerConn, chainNum uint64, head common.
 	d.lock.Lock()
 	d.syncStatus = statusCleaning
 	d.lock.Unlock()
-	tm.close()
-	d.tm = nil
+	tm[chainNum].close()
+	d.tm[chainNum] = nil
 	d.log.Debug("downloader.doSynchronise quit!")
 
 	if tm.isDone() {

@@ -63,7 +63,6 @@ func GetGenesis(info GenesisInfo) *Genesis {
 		header: &types.BlockHeader{
 			PreviousBlockHash: common.EmptyHash,
 			Creator:           common.EmptyAddress,
-		//	StateHash:         stateRootHash,
 			TxHash:            types.MerkleRootHash(nil),
 			Difficulty:        big.NewInt(info.Difficult),
 			Height:            genesisBlockHeight,

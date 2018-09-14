@@ -133,7 +133,7 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 	
 		chainNumString = strconv.Itoa(i)
 		recoveryPointFile := filepath.Join(serviceContext.DataDir, BlockChainRecoveryPointFile, chainNumString)
-		s.chains[i], err = core.NewBlockchain(bcStore, s.accountStateDB, recoveryPointFile)
+		s.chains[i], err = core.NewBlockchain(bcStore, recoveryPointFile, uint64(i))
 		if err != nil {
 			for i := 0; i < numOfChains; i++ {
 				s.chainDBs[i].Close()
@@ -178,11 +178,11 @@ func (s *SeeleService) initPool(conf *node.Config) error {
 		}
 
 		s.chainHeaderChangeChannels[i] = make(chan common.Hash, chainHeaderChangeBuffSize)
-		//s.debtPool = core.NewDebtPool(s.chain)
+		s.debtPool = core.NewDebtPool(s.chains[i])
 		s.txPools[i] = core.NewTransactionPool(conf.SeeleConfig.TxConf, s.chains[i])
 
 		event.ChainHeaderChangedEventMananger.AddAsyncListener(s.chainHeaderChanged)
-		go s.MonitorChainHeaderChange(i)
+		go s.MonitorChainHeaderChange(uint64(i))
 
 		return nil
 	}
@@ -192,11 +192,11 @@ func (s *SeeleService) initPool(conf *node.Config) error {
 // add forked transaction back
 // deleted invalid transaction
 func (s *SeeleService) chainHeaderChanged(e event.Event) {
-	newHeader := e.(common.Hash)
+	newHeader := e.(*event.chainHeaderChangedMsg).HeaderHash 
 	if newHeader.IsEmpty() {
 		return
 	}
-	chainNum := e.(uint64)
+	chainNum := e.(*event.chainHeaderChangedMsg).chainNum
 	s.chainHeaderChangeChannels[chainNum] <- newHeader
 }
 

@@ -306,8 +306,8 @@ func (p *SeeleProtocol) propagateDebtMap(debtsMap [][]*types.Debt) {
 }
 
 func (p *SeeleProtocol) handleNewMinedBlock(e event.Event) {
-	block := e.(*types.Block)
-	chainNum := e.(uint64)
+	block := e.(*event.handleNewMinedBlockMsg).block
+	chainNum := e.(*event.handleNewMinedBlockMsg).chainNum
 
 	p.peerSet.ForEach(common.LocalShardNumber, func(peer *peer) bool {
 		err := peer.SendBlockHash(block.HeaderHash)

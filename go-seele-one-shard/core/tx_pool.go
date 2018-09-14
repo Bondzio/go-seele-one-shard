@@ -17,6 +17,7 @@ import (
 	"github.com/seeleteam/go-seele/core/types"
 	"github.com/seeleteam/go-seele/event"
 	"github.com/seeleteam/go-seele/log"
+	"github.com/seeleteam/go-seele/seele"
 )
 
 var (
@@ -180,7 +181,7 @@ func (pool *TransactionPool) AddTransaction(tx *types.Transaction) error {
 		return nil
 	}
 	// TODO: make sure this state is locked
-	statedb, err := core.GetCurrentState()
+	statedb, err := seele.GetCurrentState()
 	if err != nil {
 		return fmt.Errorf("get current state db failed, error %s", err)
 	}
@@ -254,8 +255,7 @@ func (pool *TransactionPool) removeTransactions() {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
-	// TODO: make sure the state is locked
-	state, err := core.GetCurrentState()
+	state, err := seele.GetCurrentState()
 	if err != nil {
 		pool.log.Warn("failed to get current state, err: %s", err)
 		return
