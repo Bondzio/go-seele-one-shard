@@ -81,8 +81,12 @@ type transactionHashMsg struct {
 	chainNum	uint64
 }
 
-type transactionsMsg struct {
-	txs			[]*types.Transaction
+type transactionMsg struct {
+	tx    		*types.Transaction
 	chainNum 	uint64
+}
+
+type transactionMsgGroup struct {
+	txMsgGroup			[]*transactionMsg
 }
 

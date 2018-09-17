@@ -159,7 +159,10 @@ func (p *peer) sendTransactionRequest(txHashMsg *transactionHashMsg) error {
 }
 
 func (p *peer) sendTransaction(tx *types.Transaction, chainNum uint64) error {
-	return p.sendTransactions([]*types.Transaction{tx}, chainNum)
+	var txMsg *transactionMsg
+	txMsg.tx = tx
+	txMsg.chainNum = chainNum 
+	return p.sendTransactions([]*transactionMsg{txMsg})
 }
 
 func (p *peer) SendBlockHash(blockHash common.Hash) error {
@@ -184,14 +187,12 @@ func (p *peer) SendBlockRequest(blockHash common.Hash) error {
 	return p2p.SendMessage(p.rw, blockRequestMsgCode, buff)
 }
 
-func (p *peer) sendTransactions(txs []*types.Transaction, chainNum uint64) error {
-	var txsMsg transactionsMsg
-	txsMsg.txs = txs
-	txsMsg.chainNum = chainNum
-	buff := common.SerializePanic(txsMsg)
+func (p *peer) sendTransactions(txMsgs []*transactionMsg) error {
+	
+	buff := common.SerializePanic(txMsgs)
 
 	if common.PrintExplosionLog {
-		p.log.Debug("peer send [transactionsMsgCode] with length %d, size %d byte", len(txs), len(buff))
+		p.log.Debug("peer send [transactionsMsgCode] with length %d, size %d byte", len(txMsgs), len(buff))
 	}
 
 	return p2p.SendMessage(p.rw, transactionsMsgCode, buff)

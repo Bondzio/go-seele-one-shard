@@ -219,11 +219,16 @@ func (sp *SeeleProtocol) syncTransactions(p *peer) {
 	defer sp.wg.Done()
 	sp.wg.Add(1)
 
-	var pending []*types.Transaction
+	var pending []*transactionMsg
+	var txMsg 	*transactionMsg
  	for i := 0; i < numOfChains; i++ {
- 		pendingInOnePool := sp.txPool[i].GetTransactions(false, true)
- 		pending = append(pending, pendingInOnePool...)
- 	}
+		pendingInOnePool := sp.txPool[i].GetTransactions(false, true)
+		for _, tx := range pendingInOnePool {
+			txMsg.tx = tx
+			txMsg.chainNum = uint64(i)
+			pending = append(pending, txMsg)
+		} 
+	}
 
 	sp.log.Debug("syncTransactions peerid:%s pending length:%d", p.peerStrID, len(pending))
 	if len(pending) == 0 {
@@ -250,6 +255,7 @@ func (sp *SeeleProtocol) syncTransactions(p *peer) {
 	}
 
 	send(curPos)
+	
 loopOut:
 	for {
 		select {
@@ -388,10 +394,12 @@ func (s *SeeleProtocol) handleDelPeer(peer *p2p.Peer) {
 	s.downloader.UnRegisterPeer(idToStr(peer.Node.ID))
 }
 
-func (p *SeeleProtocol) SendDifferentShardTx(tx *types.Transaction, shard uint) {
+func (p *SeeleProtocol) SendDifferentShardTx(txMsg *transactionMsg, shard uint) {
+	tx := txMsg.tx
+	chainNum := txMsg.chainNum
 	sendTxFun := func(peer *peer) bool {
 		if !peer.knownTxs.Contains(tx.Hash) {
-			err := peer.sendTransaction(tx)
+			err := peer.sendTransaction(tx, chainNum)
 			if err != nil {
 				p.log.Warn("failed to send transaction to peer %s, tx hash %s", peer.Node, tx.Hash)
 				return true
@@ -483,24 +491,24 @@ handler:
 			}
 
 		case transactionsMsgCode:
-			var txsMsg transactionsMsg
-			err := common.Deserialize(msg.Payload, &txsMsg)
+			var txMsgs []*transactionMsg
+			err := common.Deserialize(msg.Payload, &txMsgs)
 			if err != nil {
 				p.log.Warn("failed to deserialize transaction msg %s", err.Error())
 				break
 			}
 
-			txs := txsMsg.txs
-			chainNum := txsMsg.chainNum
 			if common.PrintExplosionLog {
-				p.log.Debug("received %d transactions", len(txs))
+				p.log.Debug("received %d transactions", len(txMsgs))
 			}
 
-			for _, tx := range txs {
+			for _, txMsg := range txMsgs {
+				tx := txMsg.tx
+				chainNum := txMsg.chainNum
 				peer.knownTxs.Add(tx.Hash, nil)
 				shard := tx.Data.From.Shard()
 				if shard != common.LocalShardNumber {
-					go p.SendDifferentShardTx(tx, shard)
+					go p.SendDifferentShardTx(txMsg, shard)
 					continue
 				} else {
 					p.txPool[chainNum].AddTransaction(tx)
