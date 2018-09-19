@@ -35,7 +35,7 @@ type SeeleService struct {
 	log           *log.SeeleLog
 
 	txPools         [numOfChains]*core.TransactionPool
-	debtPool       *core.DebtPool
+	debtPools       [numOfChains]*core.DebtPool
 	chains          [numOfChains]*core.Blockchain
 	chainDBs        [numOfChains]database.Database // database used to store blocks.
 	accountStateDB database.Database // database used to store account state info.
@@ -52,7 +52,7 @@ type ServiceContext struct {
 }
 
 func (s *SeeleService) TxPool() []*core.TransactionPool { return s.txPools }
-func (s *SeeleService) DebtPool() *core.DebtPool      { return s.debtPool }
+func (s *SeeleService) DebtPool() []*core.DebtPool      { return s.debtPools }
 func (s *SeeleService) BlockChain() []*core.Blockchain  { return s.chains }
 func (s *SeeleService) NetVersion() uint64            { return s.networkID }
 func (s *SeeleService) Miner() *miner.Miner           { return s.miner }
@@ -106,7 +106,7 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 		return err
 	}
 
-	accountStateDBRootHash, err := statedb.Hash()
+	s.accountStateDBRootHash, err := statedb.Hash()
 	if err != nil {
 		return err
 	}
@@ -142,17 +142,18 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 			log.Error("failed to init chain in NewSeeleService. %s", err)
 			return nil, err
 		}
-	
-		err = s.initPool(conf)
-		if err != nil {
-			for i := 0; i < numOfChains; i++ {
-				s.chainDBs[i].Close()
-			}
-			s.accountStateDB.Close()
-			log.Error("failed to create transaction pool in NewSeeleService, %s", err)
-			return nil, err
-		}
 	}
+
+	err = s.initPool(conf)
+	if err != nil {
+		for i := 0; i < numOfChains; i++ {
+			s.chainDBs[i].Close()
+		}
+		s.accountStateDB.Close()
+		log.Error("failed to create transaction pool in NewSeeleService, %s", err)
+		return nil, err
+	}
+	
 
 	s.seeleProtocol, err = NewSeeleProtocol(s, log)
 	if err != nil {
@@ -178,7 +179,7 @@ func (s *SeeleService) initPool(conf *node.Config) error {
 		}
 
 		s.chainHeaderChangeChannels[i] = make(chan common.Hash, chainHeaderChangeBuffSize)
-		s.debtPool = core.NewDebtPool(s.chains[i])
+		s.debtPools[i] = core.NewDebtPool(s.chains[i])
 		s.txPools[i] = core.NewTransactionPool(conf.SeeleConfig.TxConf, s.chains[i])
 
 		event.ChainHeaderChangedEventMananger.AddAsyncListener(s.chainHeaderChanged)
@@ -205,15 +206,15 @@ func (s *SeeleService) MonitorChainHeaderChange(chainNum uint64) {
 	for {
 		select {
 		case newHeader := <-s.chainHeaderChangeChannels[chainNum]:
-			if s.lastHeader.IsEmpty() {
-				s.lastHeader = newHeader
+			if s.lastHeaders[chainNum].IsEmpty() {
+				s.lastHeaders[chainNum] = newHeader
 				return
 			}
 
-			s.txPools[chainNum].HandleChainHeaderChanged(newHeader, s.lastHeader)
+			s.txPools[chainNum].HandleChainHeaderChanged(newHeader, s.lastHeaders[chainNum])
 			//s.debtPool.HandleChainHeaderChanged(newHeader, s.lastHeader)
 
-			s.lastHeader = newHeader
+			s.lastHeaders[chainNum] = newHeader
 		}
 	}
 }

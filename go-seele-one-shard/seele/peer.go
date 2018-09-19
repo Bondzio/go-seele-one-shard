@@ -165,16 +165,16 @@ func (p *peer) sendTransaction(tx *types.Transaction, chainNum uint64) error {
 	return p.sendTransactions([]*transactionMsg{&txMsg})
 }
 
-func (p *peer) SendBlockHash(blockHash common.Hash) error {
-	if p.knownBlocks.Contains(blockHash) {
+func (p *peer) SendBlockHash(blkHashMsg *blockHashMsg) error {
+	if p.knownBlocks.Contains(blkHashMsg.blockHash) {
 		return nil
 	}
-	buff := common.SerializePanic(blockHash)
+	buff := common.SerializePanic(blkHashMsg)
 
 	p.log.Debug("peer send [blockHashMsgCode] with size %d byte", len(buff))
 	err := p2p.SendMessage(p.rw, blockHashMsgCode, buff)
 	if err == nil {
-		p.knownBlocks.Add(blockHash, nil)
+		p.knownBlocks.Add(blkHashMsg.blockHash, nil)
 	}
 
 	return err

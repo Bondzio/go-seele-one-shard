@@ -72,7 +72,7 @@ type SeeleProtocol struct {
 	networkID  uint64
 	downloader *downloader.Downloader
 	txPool     []*core.TransactionPool
-	debtPool   *core.DebtPool
+	debtPool   []*core.DebtPool
 	chain      []*core.Blockchain
 
 	wg     sync.WaitGroup
@@ -94,7 +94,7 @@ func NewSeeleProtocol(seele *SeeleService, log *log.SeeleLog) (s *SeeleProtocol,
 		},
 		networkID:  seele.networkID,
 		txPool:     seele.TxPool(),
-		debtPool:   seele.debtPool,
+		debtPool:   seele.debtPools,
 		chain:      seele.BlockChain(),
 		downloader: downloader.NewDownloader(seele.BlockChain()),
 		log:        log,
@@ -283,7 +283,7 @@ func (p *SeeleProtocol) handleNewTx(e event.Event) {
 	// find shardId by tx from address.
 	shardId := tx.Data.From.Shard()
 	p.peerSet.ForEach(shardId, func(peer *peer) bool {
-		if err := peer.sendTransactionHash(NewTxHashMsg); err != nil {
+		if err := peer.sendTransactionHash(&NewTxHashMsg); err != nil {
 			p.log.Warn("failed to send transaction to %s, %s", peer.Node.GetUDPAddr(), err)
 		}
 		return true
@@ -317,8 +317,12 @@ func (p *SeeleProtocol) handleNewMinedBlock(e event.Event) {
 	block := e.(*event.handleNewMinedBlockMsg).block
 	chainNum := e.(*event.handleNewMinedBlockMsg).chainNum
 
+	var blkHashMsg  blockHashMsg
+	blkHashMsg.blockHash = block.HeaderHash
+	blkHashMsg.chainNum  = chainNum
+
 	p.peerSet.ForEach(common.LocalShardNumber, func(peer *peer) bool {
-		err := peer.SendBlockHash(block.HeaderHash)
+		err := peer.SendBlockHash(&blkHashMsg)
 		if err != nil {
 			p.log.Warn("failed to send mined block hash %s", err.Error())
 		}
@@ -355,15 +359,15 @@ func (p *SeeleProtocol) handleAddPeer(p2pPeer *p2p.Peer, rw p2p.MsgReadWriter) {
  	head := make([]common.Hash,numOfChains)
  	localTD := make([]*big.Int,numOfChains)
  	for i := 0; i < numOfChains; i++ {
- 		block[i] = p.chains[i].CurrentBlock()
+ 		block[i] = p.chain[i].CurrentBlock()
  		head[i] = block[i].HeaderHash
- 		localTD[i], err = p.chains[i].GetStore().GetBlockTotalDifficulty(head[i])
+ 		localTD[i], err = p.chain[i].GetStore().GetBlockTotalDifficulty(head[i])
  		if err != nil {
  			return
  		}
  	}
 
-	genesisBlock, err := p.chains[0].GetStore().GetBlockByHeight(0)
+	genesisBlock, err := p.chain[0].GetStore().GetBlockByHeight(0)
 	if err != nil {
 		return
 	}
