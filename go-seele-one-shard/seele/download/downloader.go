@@ -102,12 +102,14 @@ type Downloader struct {
 type BlockHeadersMsgBody struct {
 	Magic   uint32
 	Headers []*types.BlockHeader
+	chainNum uint64
 }
 
 // BlocksMsgBody represents a message struct for BlocksMsg
 type BlocksMsgBody struct {
 	Magic  uint32
 	Blocks []*types.Block
+	chainNum uint64
 }
 
 // NewDownloader create Downloader

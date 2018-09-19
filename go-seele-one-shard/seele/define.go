@@ -55,6 +55,7 @@ type blockHeadersQuery struct {
 	Number  uint64      // Block number from which to retrieve headers (excludes Hash)
 	Amount  uint64      // Maximum number of headers to retrieve
 	Reverse bool        // Query direction (false = rising towards latest, true = falling towards genesis)
+	chainNum uint64     // chain number
 }
 
 type blocksQuery struct {
@@ -62,6 +63,7 @@ type blocksQuery struct {
 	Hash   common.Hash // Block hash from which to retrieve (excludes Number)
 	Number uint64      // Block hash from which to retrieve (excludes Hash)
 	Amount uint64      // Maximum number of headers to retrieve
+	chainNum uint64
 }
 
 // newBlockHash is the network packet for the block announcements.
@@ -86,7 +88,12 @@ type transactionMsg struct {
 	chainNum 	uint64
 }
 
-type transactionMsgGroup struct {
-	txMsgGroup			[]*transactionMsg
+type blockHashMsg struct {
+	blockHash   common.Hash
+	chainNum	uint64
 }
 
+type blockMsg struct {
+	block 		*types.Block
+	chainNum 	uint64
+}

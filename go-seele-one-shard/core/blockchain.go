@@ -360,10 +360,13 @@ func (bc *Blockchain) doWriteBlock(block *types.Block, statedb *state.Statedb, a
 	bc.blockLeaves.Add(blockIndex)
 	bc.blockLeaves.RemoveByHash(block.Header.PreviousBlockHash)
 
-	// TODO: add chainNum info in the event?
+	var HeaderChangedMsg event.chainHeaderChangedMsg
+	HeaderChangedMsg.HeaderHash = block.HeaderHash
+	HeaderChangedMsg.chainNum = block.chainNum
+
 	committed = true
 	if isHead {
-		event.ChainHeaderChangedEventMananger.Fire(block.HeaderHash)
+		event.ChainHeaderChangedEventMananger.Fire(HeaderChangedMsg)
 	}
 
 	return nil

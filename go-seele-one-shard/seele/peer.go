@@ -159,10 +159,10 @@ func (p *peer) sendTransactionRequest(txHashMsg *transactionHashMsg) error {
 }
 
 func (p *peer) sendTransaction(tx *types.Transaction, chainNum uint64) error {
-	var txMsg *transactionMsg
+	var txMsg transactionMsg
 	txMsg.tx = tx
 	txMsg.chainNum = chainNum 
-	return p.sendTransactions([]*transactionMsg{txMsg})
+	return p.sendTransactions([]*transactionMsg{&txMsg})
 }
 
 func (p *peer) SendBlockHash(blockHash common.Hash) error {
@@ -180,8 +180,8 @@ func (p *peer) SendBlockHash(blockHash common.Hash) error {
 	return err
 }
 
-func (p *peer) SendBlockRequest(blockHash common.Hash) error {
-	buff := common.SerializePanic(blockHash)
+func (p *peer) SendBlockRequest(blkHashMsg *blockHashMsg) error {
+	buff := common.SerializePanic(blkHashMsg)
 
 	p.log.Debug("peer send [blockRequestMsgCode] with size %d byte", len(buff))
 	return p2p.SendMessage(p.rw, blockRequestMsgCode, buff)
@@ -198,10 +198,10 @@ func (p *peer) sendTransactions(txMsgs []*transactionMsg) error {
 	return p2p.SendMessage(p.rw, transactionsMsgCode, buff)
 }
 
-func (p *peer) SendBlock(block *types.Block) error {
-	buff := common.SerializePanic(block)
+func (p *peer) SendBlock(blkHashMsg *blockHashMsg) error {
+	buff := common.SerializePanic(blkHashMsg)
 
-	p.log.Debug("peer send [blockMsgCode] with height %d, size %d byte", block.Header.Height, len(buff))
+	p.log.Debug("peer send [blockMsgCode] with height %d, size %d byte", blkHashMsg.block.Header.Height, len(buff))
 	return p2p.SendMessage(p.rw, blockMsgCode, buff)
 }
 
@@ -223,12 +223,12 @@ func (p *peer) HeadByChain(chainNum uint64) (hash common.Hash, td *big.Int) {
 }
 
 // SetHead updates the head hash and total difficulty of the peer.
-func (p *peer) SetHead(hash common.Hash, td *big.Int) {
+func (p *peer) SetHead(hash common.Hash, td *big.Int, chainNum uint64) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	copy(p.head[:], hash[:])
-	p.td.Set(td)
+	copy(p.head[chainNum][:], hash[:])
+	p.td[chainNum].Set(td)
 }
 
 // RequestHeadersByHashOrNumber fetches a batch of blocks' headers corresponding to the
@@ -248,10 +248,11 @@ func (p *peer) RequestHeadersByHashOrNumber(magic uint32, origin common.Hash, ch
 	return p2p.SendMessage(p.rw, downloader.GetBlockHeadersMsg, buff)
 }
 
-func (p *peer) sendBlockHeaders(magic uint32, headers []*types.BlockHeader) error {
+func (p *peer) sendBlockHeaders(magic uint32, headers []*types.BlockHeader, chainNum uint64) error {
 	sendMsg := &downloader.BlockHeadersMsgBody{
 		Magic:   magic,
 		Headers: headers,
+		chainNum: chainNum,
 	}
 	buff := common.SerializePanic(sendMsg)
 
@@ -279,10 +280,11 @@ func (p *peer) GetPeerRequestInfo() (uint32, common.Hash, uint64, int) {
 	return 0, common.EmptyHash, 0, 0
 }
 
-func (p *peer) sendBlocks(magic uint32, blocks []*types.Block) error {
+func (p *peer) sendBlocks(magic uint32, blocks []*types.Block, chainNum uint64) error {
 	sendMsg := &downloader.BlocksMsgBody{
 		Magic:  magic,
 		Blocks: blocks,
+		chainNum: chainNum,
 	}
 	buff := common.SerializePanic(sendMsg)
 

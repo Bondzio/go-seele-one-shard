@@ -454,7 +454,7 @@ handler:
 
 			if !peer.knownTxs.Contains(txHash) {
 				peer.knownTxs.Add(txHash, nil) //update peer known transaction
-				err := peer.sendTransactionRequest(txHashMsg)
+				err := peer.sendTransactionRequest(&txHashMsg)
 				if err != nil {
 					p.log.Warn("failed to send transaction request msg, %s", err.Error())
 					break handler
@@ -472,8 +472,10 @@ handler:
 				p.log.Warn("failed to deserialize transaction request msg %s", err.Error())
 				continue
 			}
+
 			txHash := txHashMsg.txHash
 			chainNum := txHashMsg.chainNum
+
 			if common.PrintExplosionLog {
 				p.log.Debug("got tx request %s", txHash.ToHex())
 			}
@@ -516,18 +518,20 @@ handler:
 			}
 
 		case blockHashMsgCode:
-			var blockHash common.Hash
-			err := common.Deserialize(msg.Payload, &blockHash)
+			var blkHashMsg blockHashMsg
+			err := common.Deserialize(msg.Payload, &blkHashMsg)
 			if err != nil {
 				p.log.Warn("failed to deserialize block hash msg %s", err.Error())
 				continue
 			}
 
+			blockHash := blkHashMsg.blockHash
+
 			p.log.Debug("got block hash msg %s", blockHash.ToHex())
 
 			if !peer.knownBlocks.Contains(blockHash) {
 				peer.knownBlocks.Add(blockHash, nil)
-				err := peer.SendBlockRequest(blockHash)
+				err := peer.SendBlockRequest(&blkHashMsg)
 				if err != nil {
 					p.log.Warn("failed to send block request msg %s", err.Error())
 					break handler
@@ -535,38 +539,48 @@ handler:
 			}
 
 		case blockRequestMsgCode:
-			var blockHash common.Hash
-			err := common.Deserialize(msg.Payload, &blockHash)
+			var blkHashMsg blockHashMsg
+			err := common.Deserialize(msg.Payload, &blkHashMsg)
 			if err != nil {
 				p.log.Warn("failed to deserialize block request msg %s", err.Error())
 				continue
 			}
 
+			blockHash := blkHashMsg.blockHash
+			chainNum := blkHashMsg.chainNum
+
 			p.log.Debug("got block request msg %s", blockHash.ToHex())
-			block, err := p.chain.GetStore().GetBlock(blockHash)
+			block, err := p.chain[chainNum].GetStore().GetBlock(blockHash)
 			if err != nil {
 				p.log.Warn("not found request block %s", err.Error())
 				continue
 			}
 
-			err = peer.SendBlock(block)
+			var blkMsg blockMsg
+			blkMsg.block = block
+			blkMsg.chainNum = chainNum
+
+			err = peer.SendBlock(blkMsg)
 			if err != nil {
 				p.log.Warn("failed to send block msg %s", err.Error())
 			}
 
 		case blockMsgCode:
-			var block types.Block
-			err := common.Deserialize(msg.Payload, &block)
+			var blkMsg blockMsg
+			err := common.Deserialize(msg.Payload, &blkMsg)
 			if err != nil {
 				p.log.Warn("failed to deserialize block msg %s", err.Error())
 				continue
 			}
 
+			block := blkMsg.block
+			chainNum := blkMsg.chainNum
+
 			p.log.Info("got block message and save it. height:%d, hash:%s", block.Header.Height, block.HeaderHash.ToHex())
 			peer.knownBlocks.Add(block.HeaderHash, nil)
 			if block.GetShardNumber() == common.LocalShardNumber {
 				// @todo need to make sure WriteBlock handle block fork
-				p.chain.WriteBlock(&block)
+				p.chain[chainNum].WriteBlock(block)
 			}
 
 		case debtMsgCode:
@@ -595,9 +609,10 @@ handler:
 			var headList []*types.BlockHeader
 			var head *types.BlockHeader
 			orgNum := query.Number
+			chainNum := query.chainNum
 
 			if query.Hash != common.EmptyHash {
-				if head, err = p.chain.GetStore().GetBlockHeader(query.Hash); err != nil {
+				if head, err = p.chain[chainNum].GetStore().GetBlockHeader(query.Hash); err != nil {
 					p.log.Error("HandleMsg GetBlockHeader err from query hash. %s", err)
 					break
 				}
@@ -605,7 +620,7 @@ handler:
 			}
 
 			p.log.Debug("Received downloader.GetBlockHeadersMsg start %d, amount %d", orgNum, query.Amount)
-			maxHeight := p.chain.CurrentBlock().Header.Height
+			maxHeight := p.chain[chainNum].CurrentBlock().Header.Height
 			for cnt := uint64(0); cnt < query.Amount; cnt++ {
 				var curNum uint64
 				if query.Reverse {
@@ -617,20 +632,20 @@ handler:
 				if curNum > maxHeight {
 					break
 				}
-				hash, err := p.chain.GetStore().GetBlockHash(curNum)
+				hash, err := p.chain[chainNum].GetStore().GetBlockHash(curNum)
 				if err != nil {
 					p.log.Error("get error when get block hash by height. err=%s curNum=%d", err, curNum)
 					break
 				}
 
-				if head, err = p.chain.GetStore().GetBlockHeader(hash); err != nil {
+				if head, err = p.chain[chainNum].GetStore().GetBlockHeader(hash); err != nil {
 					p.log.Error("get error when get block by block hash. err: %s, hash:%s", err, hash)
 					break
 				}
 				headList = append(headList, head)
 			}
 
-			if err = peer.sendBlockHeaders(query.Magic, headList); err != nil {
+			if err = peer.sendBlockHeaders(query.Magic, headList, chainNum); err != nil {
 				p.log.Error("HandleMsg sendBlockHeaders err. %s", err)
 				break handler
 			}
@@ -649,8 +664,9 @@ handler:
 			var head *types.BlockHeader
 			var block *types.Block
 			orgNum := query.Number
+			chainNum := query.chainNum
 			if query.Hash != common.EmptyHash {
-				if head, err = p.chain.GetStore().GetBlockHeader(query.Hash); err != nil {
+				if head, err = p.chain[chainNum].GetStore().GetBlockHeader(query.Hash); err != nil {
 					p.log.Error("HandleMsg GetBlockHeader err. %s", err)
 					break
 				}
@@ -663,13 +679,13 @@ handler:
 			var numL []uint64
 			for cnt := uint64(0); cnt < query.Amount; cnt++ {
 				curNum := orgNum + cnt
-				hash, err := p.chain.GetStore().GetBlockHash(curNum)
+				hash, err := p.chain[chainNum].GetStore().GetBlockHash(curNum)
 				if err != nil {
 					p.log.Warn("failed to get block with height %d, err %s", curNum, err)
 					break
 				}
 
-				if block, err = p.chain.GetStore().GetBlock(hash); err != nil {
+				if block, err = p.chain[chainNum].GetStore().GetBlock(hash); err != nil {
 					p.log.Error("HandleMsg GetBlocksMsg p.chain.GetStore().GetBlock err. %s", err)
 					break handler
 				}
@@ -689,7 +705,7 @@ handler:
 				p.log.Debug("send blocks length %d, start %d, end %d", len(blocksL), blocksL[0].Header.Height, blocksL[len(blocksL)-1].Header.Height)
 			}
 
-			if err = peer.sendBlocks(query.Magic, blocksL); err != nil {
+			if err = peer.sendBlocks(query.Magic, blocksL, chainNum); err != nil {
 				p.log.Error("HandleMsg GetBlocksMsg sendBlocks err. %s", err)
 				break handler
 			}
@@ -709,7 +725,7 @@ handler:
 			}
 
 			p.log.Debug("Received statusChainHeadMsgCode")
-			peer.SetHead(status.CurrentBlock, status.TD)
+			peer.SetHead(status.CurrentBlock, status.TD, status.chainNum)
 			p.syncCh <- struct{}{}
 
 		default:
