@@ -116,6 +116,13 @@ type consensusEngine interface {
 	ValidateRewardAmount(blockHeight uint64, amount *big.Int) error
 }
 
+type SeeleBackendForBlockchain interface {
+	GetCurrentState() (*state.Statedb, error)
+	AccountStateDB() database.Database
+	UpdateDB(db database.Database) error 
+	UpdateDBRootHash(dbRootHash common.Hash) error
+}
+
 // Blockchain represents the blockchain with a genesis block. The Blockchain manages
 // blocks insertion, deletion, reorganizations and persistence with a given database.
 // This is a thread safe structure. we must keep all of its parameters are thread safe too.
@@ -131,16 +138,18 @@ type Blockchain struct {
 
 	rp *recoveryPoint // used to recover blockchain in case of program crashed when write a block
 
+	seele		  SeeleBackendForBlockchain
 	chainNum      uint64
 }
 
 // NewBlockchain returns an initialized blockchain with the given store and account state DB.
-func NewBlockchain(bcStore store.BlockchainStore, recoveryPointFile string, chainNum uint64) (*Blockchain, error) {
+func NewBlockchain(bcStore store.BlockchainStore, recoveryPointFile string, chainNum uint64, seele SeeleBackendForBlockchain) (*Blockchain, error) {
 	bc := &Blockchain{
 		bcStore:        bcStore,
 		engine:         &pow.Engine{},
 		log:            log.GetLogger("blockchain"),
 		chainNum:       chainNum,
+		seele:			seele,
 	}
 
 	var err error
@@ -210,10 +219,10 @@ func (bc *Blockchain) CurrentBlock() *types.Block {
 }
 
 // GetCurrentState returns the state DB of the current block.
-func (bc *Blockchain) GetCurrentState() (*state.Statedb, error) {
-	block := bc.CurrentBlock()
-	return state.NewStatedb(block.Header.StateHash, bc.accountStateDB)
-}
+//func (bc *Blockchain) GetCurrentState() (*state.Statedb, error) {
+//	block := bc.CurrentBlock()
+//	return state.NewStatedb(block.Header.StateHash, bc.accountStateDB)
+//}
 
 // GetCurrentInfo return the current block and current state info
 func (bc *Blockchain) GetCurrentInfo() (*types.Block, error) {
@@ -222,9 +231,9 @@ func (bc *Blockchain) GetCurrentInfo() (*types.Block, error) {
 }
 
 // WriteBlock writes the specified block to the blockchain store.
-func (bc *Blockchain) WriteBlock(block *types.Block, statedb *state.Statedb, accountStateDB database.Database) error {
+func (bc *Blockchain) WriteBlock(block *types.Block) error {
 	startWriteBlockTime := time.Now()
-	if err := bc.doWriteBlock(block, statedb, accountStateDB); err != nil {
+	if err := bc.doWriteBlock(block); err != nil {
 		return err
 	}
 	markTime := time.Since(startWriteBlockTime)
@@ -237,7 +246,7 @@ func (bc *Blockchain) WriteHeader(*types.BlockHeader) error {
 	return ErrNotSupported
 }
 
-func (bc *Blockchain) doWriteBlock(block *types.Block, statedb *state.Statedb, accountStateDB database.Database) error {
+func (bc *Blockchain) doWriteBlock(block *types.Block) error {
 	if err := bc.validateBlock(block); err != nil {
 		return err
 	}
@@ -265,6 +274,12 @@ func (bc *Blockchain) doWriteBlock(block *types.Block, statedb *state.Statedb, a
 		return err
 	}
 
+	statedb, err := bc.seele.GetCurrentState()
+	if err != nil {
+		return err
+	}
+	accountStateDB := bc.seele.AccountStateDB()
+
 	// Process the txs in the block and check the state root hash.
 	var blockStatedb *state.Statedb
 	var receipts []*types.Receipt
@@ -277,13 +292,6 @@ func (bc *Blockchain) doWriteBlock(block *types.Block, statedb *state.Statedb, a
 		return ErrBlockReceiptHashMismatch
 	}
 
-	if txDebtsRootHash := types.DebtMerkleRootHash(types.NewDebts(block.Transactions)); !txDebtsRootHash.Equal(block.Header.TxDebtHash) {
-		return ErrBlockTxDebtHashMismatch
-	}
-
-	if debtsRootHash := types.DebtMerkleRootHash(block.Debts); !debtsRootHash.Equal(block.Header.DebtHash) {
-		return ErrBlockDebtHashMismatch
-	}
 
 	// Validate state root hash.
 	batch := accountStateDB.NewBatch()
@@ -294,8 +302,7 @@ func (bc *Blockchain) doWriteBlock(block *types.Block, statedb *state.Statedb, a
 		}
 	}()
 
-	var stateRootHash common.Hash
-	if stateRootHash, err = blockStatedb.Commit(batch); err != nil {
+	if _, err = blockStatedb.Commit(batch); err != nil {
 		return err
 	}
 
@@ -371,6 +378,19 @@ func (bc *Blockchain) doWriteBlock(block *types.Block, statedb *state.Statedb, a
 	if isHead {
 		event.ChainHeaderChangedEventMananger.Fire(HeaderChangedMsg)
 	}
+
+	// update accountstate database and the root Hash
+	if err = bc.seele.UpdateDB(accountStateDB); err != nil {
+		return err
+	} 
+	
+	stateRootHash, err := blockStatedb.Hash()
+	if err != nil {
+		return err
+	}
+	if err = bc.seele.UpdateDBRootHash(stateRootHash); err != nil {
+		return err
+	} 
 
 	return nil
 }
@@ -449,14 +469,6 @@ func (bc *Blockchain) applyTxs(block, preBlock *types.Block, statedb *state.Stat
 	minerRewardTx, err := bc.validateMinerRewardTx(block)
 	if err != nil {
 		return nil, nil, err
-	}
-
-	// update debts
-	for _, d := range block.Debts {
-		err = ApplyDebt(statedb, d, block.Header.Creator)
-		if err != nil {
-			return nil, nil, err
-		}
 	}
 
 	receipts, err := bc.updateStateDB(statedb, minerRewardTx, block.Transactions[1:], block.Header)
@@ -568,23 +580,23 @@ func (bc *Blockchain) ApplyTransaction(tx *types.Transaction, txIndex int, coinb
 	return receipt, nil
 }
 
-func ApplyDebt(statedb *state.Statedb, d *types.Debt, coinbase common.Address) error {
-	data := statedb.GetData(d.Data.Account, d.Hash)
-	if bytes.Equal(data, DebtDataFlag) {
-		return fmt.Errorf("debt already packed, debt hash %s", d.Hash.ToHex())
-	}
+// func ApplyDebt(statedb *state.Statedb, d *types.Debt, coinbase common.Address) error {
+// 	data := statedb.GetData(d.Data.Account, d.Hash)
+// 	if bytes.Equal(data, DebtDataFlag) {
+// 		return fmt.Errorf("debt already packed, debt hash %s", d.Hash.ToHex())
+// 	}
 
-	if !statedb.Exist(d.Data.Account) {
-		statedb.CreateAccount(d.Data.Account)
-	}
+// 	if !statedb.Exist(d.Data.Account) {
+// 		statedb.CreateAccount(d.Data.Account)
+// 	}
 
-	// @todo handle contract
+// 	// @todo handle contract
 
-	statedb.AddBalance(d.Data.Account, d.Data.Amount)
-	statedb.AddBalance(coinbase, d.Data.Fee)
-	statedb.SetData(d.Data.Account, d.Hash, DebtDataFlag)
-	return nil
-}
+// 	statedb.AddBalance(d.Data.Account, d.Data.Amount)
+// 	statedb.AddBalance(coinbase, d.Data.Fee)
+// 	statedb.SetData(d.Data.Account, d.Hash, DebtDataFlag)
+// 	return nil
+// }
 
 // deleteLargerHeightBlocks deletes the height-to-hash mappings with larger height in the canonical chain.
 func deleteLargerHeightBlocks(bcStore store.BlockchainStore, largerHeight uint64, rp *recoveryPoint) error {

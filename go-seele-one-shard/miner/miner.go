@@ -25,6 +25,8 @@ import (
 	"github.com/seeleteam/go-seele/log"
 	"github.com/seeleteam/go-seele/crypto"
 	"github.com/seeleteam/go-seele/miner/pow"
+	"github.com/seeleteam/go-seele/database"
+	"github.com/seeleteam/go-seele/core/state"
 )
 
 var (
@@ -45,9 +47,8 @@ const (
 
 // SeeleBackend wraps all methods required for minier.
 type SeeleBackend interface {
-	TxPool() []*core.TransactionPool
-	BlockChain() []*core.Blockchain
-	DebtPool() []*core.DebtPool
+	TxPool() [numOfChains]*core.TransactionPool
+	BlockChain() [numOfChains]*core.Blockchain
 	AccountStateDB() database.Database
 	GetCurrentState() (*state.Statedb, error)
 }
@@ -277,7 +278,7 @@ func (miner *Miner) prepareNewBlock(chainNum uint64) error {
 	timestamp := time.Now().Unix()
 	
 	stateDB, err := miner.seele.GetCurrentState()
-	blockchains := miner.seele.Blockchain()
+	blockchains := miner.seele.BlockChain()
 	parent, err := blockchains[chainNum].GetCurrentInfo()
 	if err != nil {
 		return fmt.Errorf("failed to get current info, %s", err)
@@ -326,12 +327,7 @@ func (miner *Miner) prepareNewBlock(chainNum uint64) error {
 // saveBlock saves the block in the given result to the blockchain
 func (miner *Miner) saveBlock(result *Result) error {
 	Blockchains := miner.seele.BlockChain()
-	statedb, err := miner.seele.GetCurrentState()
-	accountStateDB := miner.seele.AccountStateDB()
-	if err != nil {
-		return err
-	}
-	ret := Blockchains[result.block.chainNum].WriteBlock(result.block, statedb, accountStateDB)
+	ret := Blockchains[result.block.ChainNum].WriteBlock(result.block)
 	return ret
 }
 
@@ -418,8 +414,8 @@ func (miner *Miner) getMiningKey() (common.Hash, error) {
 func (miner *Miner) getChainNumByMiningKey(miningKeyHashInt *big.Int) uint64 {
 
 	result := new(big.Int)
-	result := result.Mod(miningKeyHashInt, big.NewInt(numOfChains))
-	chainNum := result.uint64()
+	result = result.Mod(miningKeyHashInt, big.NewInt(numOfChains))
+	chainNum := result.Uint64()
 	return chainNum
 }
 

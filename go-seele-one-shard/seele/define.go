@@ -41,8 +41,8 @@ const (
 type statusData struct {
 	ProtocolVersion uint32
 	NetworkID       uint64
-	TD              *big.Int
-	CurrentBlock    common.Hash
+	TD              []*big.Int
+	CurrentBlock    []common.Hash
 	GenesisBlock    common.Hash
 	Shard           uint
 	Difficult       uint64
@@ -76,6 +76,7 @@ type newBlockHash struct {
 type chainHeadStatus struct {
 	TD           *big.Int
 	CurrentBlock common.Hash
+	ChainNum	 uint64
 }
 
 type transactionHashMsg struct {

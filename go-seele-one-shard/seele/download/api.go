@@ -25,17 +25,17 @@ type SyncInfo struct {
 }
 
 // GetStatus gets the SyncInfo.
-func (api *PrivatedownloaderAPI) GetStatus(input interface{}, result *map[string]interface{}) error {
-	var info SyncInfo
-	api.d.getSyncInfo(&info)
+// func (api *PrivatedownloaderAPI) GetStatus(input interface{}, result *map[string]interface{}) error {
+// 	var info SyncInfo
+// 	api.d.getSyncInfo(&info)
 
-	*result = map[string]interface{}{
-		"status":     info.Status,
-		"duration":   info.Duration,
-		"startNum":   info.StartNum,
-		"amount":     info.Amount,
-		"downloaded": info.Downloaded,
-	}
+// 	*result = map[string]interface{}{
+// 		"status":     info.Status,
+// 		"duration":   info.Duration,
+// 		"startNum":   info.StartNum,
+// 		"amount":     info.Amount,
+// 		"downloaded": info.Downloaded,
+// 	}
 
-	return nil
-}
+// 	return nil
+// }

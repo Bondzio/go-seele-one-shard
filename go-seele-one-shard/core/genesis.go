@@ -29,7 +29,7 @@ const genesisBlockHeight = uint64(0)
 // Genesis represents the genesis block in the blockchain.
 type Genesis struct {
 	header *types.BlockHeader
-	info   GenesisInfo
+	Info   GenesisInfo
 }
 
 // GenesisInfo genesis info for generating genesis block, it could be used for initializing account balance
@@ -69,13 +69,13 @@ func GetGenesis(info GenesisInfo) *Genesis {
 			Nonce:             1,
 			ExtraData:         common.SerializePanic(extraData),
 		},
-		info: info,
+		Info: info,
 	}
 }
 
 // GetShardNumber gets the shard number of genesis
 func (genesis *Genesis) GetShardNumber() uint {
-	return genesis.info.ShardNumber
+	return genesis.Info.ShardNumber
 }
 
 // InitializeAndValidate writes the genesis block in the blockchain store if unavailable.
@@ -102,7 +102,7 @@ func (genesis *Genesis) InitializeAndValidate(bcStore store.BlockchainStore) err
 		return fmt.Errorf("failed to get genesis extra data. %s", err)
 	}
 
-	if data.ShardNumber != genesis.info.ShardNumber {
+	if data.ShardNumber != genesis.Info.ShardNumber {
 		return errors.New("specific shard number does not match with the shard number in genesis info")
 	}
 
@@ -120,7 +120,7 @@ func (genesis *Genesis) store(bcStore store.BlockchainStore) error {
 	return bcStore.PutBlockHeader(genesis.header.Hash(), genesis.header, genesis.header.Difficulty, true)
 }
 
-func getStateDB(info GenesisInfo) (*state.Statedb, error) {
+func GetStateDB(info GenesisInfo) (*state.Statedb, error) {
 	statedb, err := state.NewStatedb(common.EmptyHash, nil)
 	if err != nil {
 		return nil, err

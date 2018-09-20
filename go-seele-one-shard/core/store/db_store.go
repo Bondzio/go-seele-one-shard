@@ -30,7 +30,6 @@ var (
 // blockBody represents the payload of a block
 type blockBody struct {
 	Txs   []*types.Transaction // Txs is a transaction collection
-	debts []*types.Debt        // debts is a debt collection
 }
 
 // blockchainDatabase wraps a database used for the blockchain
@@ -57,7 +56,6 @@ func hashToTDKey(hash []byte) []byte            { return append(keyPrefixTD, has
 func hashToBodyKey(hash []byte) []byte          { return append(keyPrefixBody, hash...) }
 func hashToReceiptsKey(hash []byte) []byte      { return append(keyPrefixReceipts, hash...) }
 func txHashToIndexKey(txHash []byte) []byte     { return append(keyPrefixTxIndex, txHash...) }
-func debtHashToIndexKey(debtHash []byte) []byte { return append(keyPrefixDebtIndex, debtHash...) }
 
 // GetBlockHash gets the hash of the block with the specified height in the blockchain database
 func (store *blockchainDatabase) GetBlockHash(height uint64) (common.Hash, error) {
@@ -174,11 +172,6 @@ func (store *blockchainDatabase) putBlockInternal(hash common.Hash, header *type
 			batch.Put(txHashToIndexKey(tx.Hash.Bytes()), encodedTxIndex)
 		}
 
-		for i, d := range body.debts {
-			idx := types.DebtIndex{BlockHash: hash, Index: uint(i)}
-			encodedDebtIndex := common.SerializePanic(idx)
-			batch.Put(debtHashToIndexKey(d.Hash.Bytes()), encodedDebtIndex)
-		}
 	}
 
 	if isHead {
@@ -211,7 +204,7 @@ func (store *blockchainDatabase) PutBlock(block *types.Block, td *big.Int, isHea
 		panic("block is nil")
 	}
 
-	return store.putBlockInternal(block.HeaderHash, block.Header, &blockBody{block.Transactions, block.Debts}, td, isHead)
+	return store.putBlockInternal(block.HeaderHash, block.Header, &blockBody{block.Transactions}, td, isHead)
 }
 
 // GetBlock gets the block with the specified hash in the blockchain database
@@ -248,7 +241,6 @@ func (store *blockchainDatabase) GetBlock(hash common.Hash) (*types.Block, error
 		HeaderHash:   hash,
 		Header:       header,
 		Transactions: body.Txs,
-		Debts:        body.debts,
 	}, nil
 }
 
@@ -293,11 +285,6 @@ func (store *blockchainDatabase) DeleteBlock(hash common.Hash) error {
 		}
 	}
 
-	for _, d := range body.debts {
-		if err = store.delete(batch, debtHashToIndexKey(d.Hash.Bytes())); err != nil {
-			return err
-		}
-	}
 
 	// delete body
 	batch.Delete(bodyKey)
@@ -395,17 +382,17 @@ func (store *blockchainDatabase) GetTxIndex(txHash common.Hash) (*types.TxIndex,
 	return index, nil
 }
 
-// GetTxIndex retrieves the tx index for the specified tx hash.
-func (store *blockchainDatabase) GetDebtIndex(debtHash common.Hash) (*types.DebtIndex, error) {
-	data, err := store.db.Get(debtHashToIndexKey(debtHash.Bytes()))
-	if err != nil {
-		return nil, err
-	}
+// // GetTxIndex retrieves the tx index for the specified tx hash.
+// func (store *blockchainDatabase) GetDebtIndex(debtHash common.Hash) (*types.DebtIndex, error) {
+// 	data, err := store.db.Get(debtHashToIndexKey(debtHash.Bytes()))
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	index := &types.DebtIndex{}
-	if err := common.Deserialize(data, index); err != nil {
-		return nil, err
-	}
+// 	index := &types.DebtIndex{}
+// 	if err := common.Deserialize(data, index); err != nil {
+// 		return nil, err
+// 	}
 
-	return index, nil
-}
+// 	return index, nil
+// }

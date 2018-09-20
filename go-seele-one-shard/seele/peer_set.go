@@ -20,7 +20,7 @@ type peerSet struct {
 
 type bestPeerForEachChain struct {
 	bestPeer	*peer
-	bestTd		*big.int		// the Td of the peer in this chain	
+	bestTd		*big.Int		// the Td of the peer in this chain	
 	chainNum    uint64	        // the peer is the best in this chain
 }
 
@@ -42,17 +42,17 @@ func (p *peerSet) bestPeer(shard uint) []*bestPeerForEachChain {
 	bestPeers := make([]*bestPeerForEachChain, numOfChains)
 	p.ForEach(shard, func(p *peer) bool {
  		for i := 0; i < numOfChains; i++ {
-			td := p.HeadByChain(i)   
+			_, td := p.HeadByChain(uint64(i))   
 			if bestPeers[i] == nil || td.Cmp(bestPeers[i].bestTd) > 0 {
 				bestPeers[i].bestPeer, bestPeers[i].bestTd = p, td
- 				bestPeers[i].chainNum = i
+ 				bestPeers[i].chainNum = uint64(i)
  			}
 		}
 
 		return true
 	})
 
-	return bestPeer
+	return bestPeers
 }
 
 func (p *peerSet) Find(address common.Address) *peer {

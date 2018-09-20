@@ -7,7 +7,7 @@ package downloader
 
 import (
 	"errors"
-	"fmt"
+	//"fmt"
 	"math/big"
 	rand2 "math/rand"
 	"sync"
@@ -32,6 +32,9 @@ const (
 	BlocksPreMsg uint16 = 11
 	// BlocksMsg message type for delivering blocks
 	BlocksMsg uint16 = 12
+
+	// number of chains
+	numOfChains = 10
 )
 
 // CodeToStr message code -> message string
@@ -92,7 +95,7 @@ type Downloader struct {
 	syncStatus int
 	tm         [numOfChains]*taskMgr
 
-	chain     []*core.Blockchain
+	chain     [numOfChains]*core.Blockchain
 	sessionWG sync.WaitGroup
 	log       *log.SeeleLog
 	lock      sync.RWMutex
@@ -102,18 +105,18 @@ type Downloader struct {
 type BlockHeadersMsgBody struct {
 	Magic   uint32
 	Headers []*types.BlockHeader
-	chainNum uint64
+	ChainNum uint64
 }
 
 // BlocksMsgBody represents a message struct for BlocksMsg
 type BlocksMsgBody struct {
 	Magic  uint32
 	Blocks []*types.Block
-	chainNum uint64
+	ChainNum uint64
 }
 
 // NewDownloader create Downloader
-func NewDownloader(chain []*core.Blockchain) *Downloader {
+func NewDownloader(chain [numOfChains]*core.Blockchain) *Downloader {
 	d := &Downloader{
 		cancelCh:   make(chan struct{}),
 		peers:      make(map[string]*peerConn),
@@ -143,20 +146,20 @@ func (d *Downloader) getReadableStatus() string {
 }
 
 // getSyncInfo gets sync information of the current session.
-func (d *Downloader) getSyncInfo(info *SyncInfo) {
-	d.lock.RLock()
-	defer d.lock.RUnlock()
+// func (d *Downloader) getSyncInfo(info *SyncInfo) {
+// 	d.lock.RLock()
+// 	defer d.lock.RUnlock()
 
-	info.Status = d.getReadableStatus()
-	if d.syncStatus != statusFetching {
-		return
-	}
+// 	info.Status = d.getReadableStatus()
+// 	if d.syncStatus != statusFetching {
+// 		return
+// 	}
 
-	info.Duration = fmt.Sprintf("%.2f", time.Now().Sub(d.tm.startTime).Seconds())
-	info.StartNum = d.tm.fromNo
-	info.Amount = d.tm.toNo - d.tm.fromNo + 1
-	info.Downloaded = d.tm.downloadedNum
-}
+// 	info.Duration = fmt.Sprintf("%.2f", time.Now().Sub(d.tm.startTime).Seconds())
+// 	info.StartNum = d.tm.fromNo
+// 	info.Amount = d.tm.toNo - d.tm.fromNo + 1
+// 	info.Downloaded = d.tm.downloadedNum
+// }
 
 // Synchronise try to sync with remote peer.
 func (d *Downloader) Synchronise(id string, chainNum uint64, head common.Hash, td *big.Int, localTD *big.Int) error {
@@ -235,7 +238,7 @@ func (d *Downloader) doSynchronise(conn *peerConn, chainNum uint64, head common.
 	d.lock.Lock()
 	d.syncStatus = statusCleaning
 	d.lock.Unlock()
-	tm[chainNum].close()
+	tm.close()
 	d.tm[chainNum] = nil
 	d.log.Debug("downloader.doSynchronise quit!")
 
@@ -290,7 +293,7 @@ func (d *Downloader) findCommonAncestorHeight(conn *peerConn, chainNum uint64, h
 		}
 
 		// Get peer block headers
-		headers, err := d.getPeerBlockHaders(conn, localTop, fetchCount)
+		headers, err := d.getPeerBlockHaders(conn, localTop, fetchCount, chainNum)
 		if err != nil {
 			return 0, err
 		}
@@ -348,9 +351,9 @@ func getFetchCount(maxFetchAncestry, cmpCount uint64) uint64 {
 	return fetchCount
 }
 
-func (d *Downloader) getPeerBlockHaders(conn *peerConn, localTop, fetchCount uint64) ([]*types.BlockHeader, error) {
+func (d *Downloader) getPeerBlockHaders(conn *peerConn, localTop, fetchCount uint64, chainNum uint64) ([]*types.BlockHeader, error) {
 	magic := rand2.Uint32()
-	go conn.peer.RequestHeadersByHashOrNumber(magic, common.EmptyHash, localTop, int(fetchCount), true)
+	go conn.peer.RequestHeadersByHashOrNumber(magic, common.EmptyHash, chainNum, localTop, int(fetchCount), true)
 
 	msg, err := conn.waitMsg(magic, BlockHeadersMsg, d.cancelCh)
 	if err != nil {

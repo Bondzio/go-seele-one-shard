@@ -30,7 +30,6 @@ var (
 const overTimeInterval = 3 * time.Hour
 
 type blockchain interface {
-	GetCurrentState() (*state.Statedb, error)
 	GetStore() store.BlockchainStore
 }
 

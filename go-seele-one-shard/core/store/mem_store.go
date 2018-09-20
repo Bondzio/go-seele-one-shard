@@ -29,7 +29,6 @@ type MemStore struct {
 	HeadBlockHash   common.Hash            // HEAD block hash
 	Blocks          map[common.Hash]*memBlock
 	TxLookups       map[common.Hash]types.TxIndex   // tx hash to index mapping
-	DebtLookups     map[common.Hash]types.DebtIndex // debt hash to index mapping
 
 	CorruptOnPutBlock bool // used to test blockchain recovery if program crashed
 }
@@ -39,7 +38,6 @@ func NewMemStore() *MemStore {
 		CanonicalBlocks: make(map[uint64]common.Hash),
 		Blocks:          make(map[common.Hash]*memBlock),
 		TxLookups:       make(map[common.Hash]types.TxIndex),
-		DebtLookups:     make(map[common.Hash]types.DebtIndex),
 	}
 }
 
@@ -134,9 +132,6 @@ func (store *MemStore) PutBlock(block *types.Block, td *big.Int, isHead bool) er
 		store.TxLookups[tx.Hash] = types.TxIndex{BlockHash: block.HeaderHash, Index: uint(i)}
 	}
 
-	for i, d := range block.Debts {
-		store.DebtLookups[d.Hash] = types.DebtIndex{BlockHash: block.HeaderHash, Index: uint(i)}
-	}
 
 	if isHead {
 		store.CanonicalBlocks[block.Header.Height] = block.HeaderHash
@@ -164,9 +159,6 @@ func (store *MemStore) DeleteBlock(hash common.Hash) error {
 			delete(store.TxLookups, tx.Hash)
 		}
 
-		for _, d := range block.block.Debts {
-			delete(store.DebtLookups, d.Hash)
-		}
 	}
 
 	delete(store.Blocks, hash)
@@ -231,11 +223,11 @@ func (store *MemStore) GetTxIndex(txHash common.Hash) (*types.TxIndex, error) {
 	return &txIndex, nil
 }
 
-func (store *MemStore) GetDebtIndex(txHash common.Hash) (*types.DebtIndex, error) {
-	debtIndex, found := store.DebtLookups[txHash]
-	if !found {
-		return nil, errNotFound
-	}
+// func (store *MemStore) GetDebtIndex(txHash common.Hash) (*types.DebtIndex, error) {
+// 	debtIndex, found := store.DebtLookups[txHash]
+// 	if !found {
+// 		return nil, errNotFound
+// 	}
 
-	return &debtIndex, nil
-}
+// 	return &debtIndex, nil
+// }

@@ -32,8 +32,8 @@ type HandleNewMinedBlockMsg struct {
 }
 
 type HandleNewTxMsg struct {
-	tx          *types.Transaction
-	chainNum    uint64
+	Tx          *types.Transaction
+	ChainNum    uint64
 }
 
 // eventListener is a struct which defines a function as a listener

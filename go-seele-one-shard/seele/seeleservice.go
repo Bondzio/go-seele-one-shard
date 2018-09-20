@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strconv"
 
 	"github.com/seeleteam/go-seele/common"
 	"github.com/seeleteam/go-seele/core"
@@ -35,7 +36,6 @@ type SeeleService struct {
 	log           *log.SeeleLog
 
 	txPools         [numOfChains]*core.TransactionPool
-	debtPools       [numOfChains]*core.DebtPool
 	chains          [numOfChains]*core.Blockchain
 	chainDBs        [numOfChains]database.Database // database used to store blocks.
 	accountStateDB database.Database // database used to store account state info.
@@ -51,9 +51,8 @@ type ServiceContext struct {
 	DataDir string
 }
 
-func (s *SeeleService) TxPool() []*core.TransactionPool { return s.txPools }
-func (s *SeeleService) DebtPool() []*core.DebtPool      { return s.debtPools }
-func (s *SeeleService) BlockChain() []*core.Blockchain  { return s.chains }
+func (s *SeeleService) TxPool() [numOfChains]*core.TransactionPool { return s.txPools }
+func (s *SeeleService) BlockChain() [numOfChains]*core.Blockchain  { return s.chains }
 func (s *SeeleService) NetVersion() uint64            { return s.networkID }
 func (s *SeeleService) Miner() *miner.Miner           { return s.miner }
 func (s *SeeleService) Downloader() *downloader.Downloader {
@@ -64,6 +63,17 @@ func (s *SeeleService) AccountStateDB() database.Database { return s.accountStat
 func (s *SeeleService) GetCurrentState() (*state.Statedb, error) {
 	return state.NewStatedb(s.accountStateDBRootHash, s.accountStateDB)
 }
+
+func (s *SeeleService) UpdateDB(db database.Database) error {
+	s.accountStateDB = db
+	return nil
+}
+
+func (s *SeeleService) UpdateDBRootHash(dbRootHash common.Hash) error {
+	s.accountStateDBRootHash = dbRootHash
+	return nil
+}
+
 
 
 // NewSeeleService create SeeleService
@@ -101,26 +111,26 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 	}
 
 	// initialize accountStateDB with genesis info
-	statedb, err := core.getStateDB(genesis.info)
+	genesis := core.GetGenesis(conf.SeeleConfig.GenesisConfig)
+	statedb, err := core.GetStateDB(genesis.Info)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	s.accountStateDBRootHash, err := statedb.Hash()
+	s.accountStateDBRootHash, err = statedb.Hash()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	batch := s.accountStateDB.NewBatch()
 	statedb.Commit(batch)
 	if err = batch.Commit(); err != nil {
-		return err
+		return nil, err
 	}
 
 	// initialize and validate genesis
 	for i := 0; i < numOfChains; i++ {
 		bcStore := store.NewCachedStore(store.NewBlockchainDatabase(s.chainDBs[i]))
-		genesis := core.GetGenesis(conf.SeeleConfig.GenesisConfig)
 		err = genesis.InitializeAndValidate(bcStore)
 		if err != nil {
 			for i := 0; i < numOfChains; i++ {
@@ -131,9 +141,9 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 			return nil, err
 		}
 	
-		chainNumString = strconv.Itoa(i)
+		chainNumString := strconv.Itoa(i)
 		recoveryPointFile := filepath.Join(serviceContext.DataDir, BlockChainRecoveryPointFile, chainNumString)
-		s.chains[i], err = core.NewBlockchain(bcStore, recoveryPointFile, uint64(i))
+		s.chains[i], err = core.NewBlockchain(bcStore, recoveryPointFile, uint64(i), s)
 		if err != nil {
 			for i := 0; i < numOfChains; i++ {
 				s.chainDBs[i].Close()
@@ -179,25 +189,24 @@ func (s *SeeleService) initPool(conf *node.Config) error {
 		}
 
 		s.chainHeaderChangeChannels[i] = make(chan common.Hash, chainHeaderChangeBuffSize)
-		s.debtPools[i] = core.NewDebtPool(s.chains[i])
-		s.txPools[i] = core.NewTransactionPool(conf.SeeleConfig.TxConf, s.chains[i], s)
+		s.txPools[i] = core.NewTransactionPool(conf.SeeleConfig.TxConf, s.chains[i], uint64(i), s)
 
 		event.ChainHeaderChangedEventMananger.AddAsyncListener(s.chainHeaderChanged)
 		go s.MonitorChainHeaderChange(uint64(i))
 
-		return nil
 	}
+	return nil
 }
 
 // chainHeaderChanged handle chain header changed event.
 // add forked transaction back
 // deleted invalid transaction
 func (s *SeeleService) chainHeaderChanged(e event.Event) {
-	newHeader := e.(*event.chainHeaderChangedMsg).HeaderHash 
+	newHeader := e.(*event.ChainHeaderChangedMsg).HeaderHash 
 	if newHeader.IsEmpty() {
 		return
 	}
-	chainNum := e.(*event.chainHeaderChangedMsg).chainNum
+	chainNum := e.(*event.ChainHeaderChangedMsg).ChainNum
 	s.chainHeaderChangeChannels[chainNum] <- newHeader
 }
 
@@ -212,8 +221,6 @@ func (s *SeeleService) MonitorChainHeaderChange(chainNum uint64) {
 			}
 
 			s.txPools[chainNum].HandleChainHeaderChanged(newHeader, s.lastHeaders[chainNum])
-			//s.debtPool.HandleChainHeaderChanged(newHeader, s.lastHeader)
-
 			s.lastHeaders[chainNum] = newHeader
 		}
 	}
@@ -241,49 +248,51 @@ func (s *SeeleService) Stop() error {
 	//TODO
 	// s.txPool.Stop() s.chain.Stop()
 	// retries? leave it to future
-	s.chainDB.Close()
+	for i := 0; i < numOfChains; i++ {
+		s.chainDBs[i].Close()
+	}
 	s.accountStateDB.Close()
 	return nil
 }
 
 // APIs implements node.Service, returning the collection of RPC services the seele package offers.
-func (s *SeeleService) APIs() (apis []rpc.API) {
-	return append(apis, []rpc.API{
-		{
-			Namespace: "seele",
-			Version:   "1.0",
-			Service:   NewPublicSeeleAPI(s),
-			Public:    true,
-		},
-		{
-			Namespace: "txpool",
-			Version:   "1.0",
-			Service:   NewTransactionPoolAPI(s),
-			Public:    true,
-		},
-		{
-			Namespace: "download",
-			Version:   "1.0",
-			Service:   downloader.NewPrivatedownloaderAPI(s.seeleProtocol.downloader),
-			Public:    false,
-		},
-		{
-			Namespace: "network",
-			Version:   "1.0",
-			Service:   NewPrivateNetworkAPI(s),
-			Public:    false,
-		},
-		{
-			Namespace: "debug",
-			Version:   "1.0",
-			Service:   NewPrivateDebugAPI(s),
-			Public:    false,
-		},
-		{
-			Namespace: "miner",
-			Version:   "1.0",
-			Service:   NewPrivateMinerAPI(s),
-			Public:    false,
-		},
-	}...)
-}
+ func (s *SeeleService) APIs() (apis []rpc.API) {
+ 	return append(apis, []rpc.API{
+ 		{
+ 			Namespace: "seele",
+ 			Version:   "1.0",
+ 			Service:   NewPublicSeeleAPI(s),
+ 			Public:    true,
+ 		},
+ 		{
+ 			Namespace: "txpool",
+ 			Version:   "1.0",
+ 			Service:   NewTransactionPoolAPI(s),
+ 			Public:    true,
+ 		},
+ 		{
+ 			Namespace: "download",
+ 			Version:   "1.0",
+ 			Service:   downloader.NewPrivatedownloaderAPI(s.seeleProtocol.downloader),
+ 			Public:    false,
+ 		},
+ 		{
+ 			Namespace: "network",
+ 			Version:   "1.0",
+ 			Service:   NewPrivateNetworkAPI(s),
+ 			Public:    false,
+ 		},
+ 		{
+ 			Namespace: "debug",
+ 			Version:   "1.0",
+ 			Service:   NewPrivateDebugAPI(s),
+ 			Public:    false,
+ 		},
+ 		{
+ 			Namespace: "miner",
+ 			Version:   "1.0",
+ 			Service:   NewPrivateMinerAPI(s),
+ 			Public:    false,
+ 		},
+ 	}...)
+ }

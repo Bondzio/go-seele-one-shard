@@ -6,7 +6,7 @@
 package seele
 
 import (
-	"encoding/hex"
+	//"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -129,25 +129,25 @@ func (p *peer) sendTransactionHash(txHashMsg *transactionHashMsg) error {
 	return err
 }
 
-func (p *peer) sendDebts(debts []*types.Debt) error {
-	filterDebts := make([]*types.Debt, 0)
-	for _, d := range debts {
-		if d != nil && !p.knownDebts.Contains(d.Hash) {
-			filterDebts = append(filterDebts, d)
-		}
-	}
+// func (p *peer) sendDebts(debts []*types.Debt) error {
+// 	filterDebts := make([]*types.Debt, 0)
+// 	for _, d := range debts {
+// 		if d != nil && !p.knownDebts.Contains(d.Hash) {
+// 			filterDebts = append(filterDebts, d)
+// 		}
+// 	}
 
-	buff := common.SerializePanic(debts)
-	p.log.Debug("peer send [debtMsgCode] with size %d bytes and %d debts", len(buff), len(debts))
-	err := p2p.SendMessage(p.rw, debtMsgCode, buff)
-	if err == nil {
-		for _, d := range debts {
-			p.knownDebts.Add(d.Hash, nil)
-		}
-	}
+// 	buff := common.SerializePanic(debts)
+// 	p.log.Debug("peer send [debtMsgCode] with size %d bytes and %d debts", len(buff), len(debts))
+// 	err := p2p.SendMessage(p.rw, debtMsgCode, buff)
+// 	if err == nil {
+// 		for _, d := range debts {
+// 			p.knownDebts.Add(d.Hash, nil)
+// 		}
+// 	}
 
-	return err
-}
+// 	return err
+// }
 
 func (p *peer) sendTransactionRequest(txHashMsg *transactionHashMsg) error {
 	buff := common.SerializePanic(txHashMsg)
@@ -198,21 +198,21 @@ func (p *peer) sendTransactions(txMsgs []*transactionMsg) error {
 	return p2p.SendMessage(p.rw, transactionsMsgCode, buff)
 }
 
-func (p *peer) SendBlock(blkHashMsg *blockHashMsg) error {
-	buff := common.SerializePanic(blkHashMsg)
+func (p *peer) SendBlock(blkMsg *blockMsg) error {
+	buff := common.SerializePanic(blkMsg)
 
-	p.log.Debug("peer send [blockMsgCode] with height %d, size %d byte", blkHashMsg.block.Header.Height, len(buff))
+	p.log.Debug("peer send [blockMsgCode] with height %d, size %d byte", blkMsg.block.Header.Height, len(buff))
 	return p2p.SendMessage(p.rw, blockMsgCode, buff)
 }
 
 // Head retrieves a copy of the current head hash and total difficulty.
-func (p *peer) Head() (hash common.Hash, td *big.Int) {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
+// func (p *peer) Head() (hash common.Hash, td *big.Int) {
+// 	p.lock.RLock()
+// 	defer p.lock.RUnlock()
 
-	copy(hash[:], p.head[:])
-	return hash, new(big.Int).Set(p.td)
-}
+// 	copy(hash[:], p.head[:])
+// 	return hash, new(big.Int).Set(p.td)
+// }
 
 func (p *peer) HeadByChain(chainNum uint64) (hash common.Hash, td *big.Int) {
 	p.lock.RLock()
@@ -252,7 +252,7 @@ func (p *peer) sendBlockHeaders(magic uint32, headers []*types.BlockHeader, chai
 	sendMsg := &downloader.BlockHeadersMsgBody{
 		Magic:   magic,
 		Headers: headers,
-		chainNum: chainNum,
+		ChainNum: chainNum,
 	}
 	buff := common.SerializePanic(sendMsg)
 
@@ -284,7 +284,7 @@ func (p *peer) sendBlocks(magic uint32, blocks []*types.Block, chainNum uint64) 
 	sendMsg := &downloader.BlocksMsgBody{
 		Magic:  magic,
 		Blocks: blocks,
-		chainNum: chainNum,
+		ChainNum: chainNum,
 	}
 	buff := common.SerializePanic(sendMsg)
 

@@ -34,8 +34,8 @@ type statusData struct {
 	ProtocolVersion uint32
 	NetworkID       uint64
 	IsServer        bool // whether server mode
-	TD              *big.Int
-	CurrentBlock    common.Hash
+	TD              []*big.Int
+	CurrentBlock    []common.Hash
 	CurrentBlockNum uint64
 	GenesisBlock    common.Hash
 }
