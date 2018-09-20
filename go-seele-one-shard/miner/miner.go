@@ -45,9 +45,9 @@ const (
 
 // SeeleBackend wraps all methods required for minier.
 type SeeleBackend interface {
-	TxPool() *core.TransactionPool
-	BlockChain() *core.Blockchain
-	DebtPool() *core.DebtPool
+	TxPool() []*core.TransactionPool
+	BlockChain() []*core.Blockchain
+	DebtPool() []*core.DebtPool
 	AccountStateDB() database.Database
 	GetCurrentState() (*state.Statedb, error)
 }
@@ -276,8 +276,7 @@ func (miner *Miner) prepareNewBlock(chainNum uint64) error {
 
 	timestamp := time.Now().Unix()
 	
-	//TODO: get current stateDB
-
+	stateDB, err := miner.seele.GetCurrentState()
 	blockchains := miner.seele.Blockchain()
 	parent, err := blockchains[chainNum].GetCurrentInfo()
 	if err != nil {

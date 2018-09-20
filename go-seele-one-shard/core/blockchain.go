@@ -13,13 +13,15 @@ import (
 	"sync"
 	"time"
 
+	
 	"github.com/seeleteam/go-seele/common"
+	"github.com/seeleteam/go-seele/core/types"
+	"github.com/seeleteam/go-seele/event"
 	"github.com/seeleteam/go-seele/core/state"
 	"github.com/seeleteam/go-seele/core/store"
 	"github.com/seeleteam/go-seele/core/svm"
-	"github.com/seeleteam/go-seele/core/types"
 	"github.com/seeleteam/go-seele/database"
-	"github.com/seeleteam/go-seele/event"
+	
 	"github.com/seeleteam/go-seele/log"
 	"github.com/seeleteam/go-seele/metrics"
 	"github.com/seeleteam/go-seele/miner/pow"
@@ -216,7 +218,7 @@ func (bc *Blockchain) GetCurrentState() (*state.Statedb, error) {
 // GetCurrentInfo return the current block and current state info
 func (bc *Blockchain) GetCurrentInfo() (*types.Block, error) {
 	block := bc.CurrentBlock()
-	return block, err
+	return block, nil
 }
 
 // WriteBlock writes the specified block to the blockchain store.
@@ -264,6 +266,7 @@ func (bc *Blockchain) doWriteBlock(block *types.Block, statedb *state.Statedb, a
 	}
 
 	// Process the txs in the block and check the state root hash.
+	var blockStatedb *state.Statedb
 	var receipts []*types.Receipt
 	if blockStatedb, receipts, err = bc.applyTxs(block, preBlock, statedb); err != nil {
 		return err
@@ -360,9 +363,9 @@ func (bc *Blockchain) doWriteBlock(block *types.Block, statedb *state.Statedb, a
 	bc.blockLeaves.Add(blockIndex)
 	bc.blockLeaves.RemoveByHash(block.Header.PreviousBlockHash)
 
-	var HeaderChangedMsg event.chainHeaderChangedMsg
+	var HeaderChangedMsg *event.ChainHeaderChangedMsg
 	HeaderChangedMsg.HeaderHash = block.HeaderHash
-	HeaderChangedMsg.chainNum = block.chainNum
+	HeaderChangedMsg.ChainNum = block.ChainNum
 
 	committed = true
 	if isHead {

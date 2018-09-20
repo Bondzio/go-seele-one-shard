@@ -13,7 +13,6 @@ import (
 	"github.com/seeleteam/go-seele/core/state"
 	"github.com/seeleteam/go-seele/core/store"
 	"github.com/seeleteam/go-seele/core/types"
-	"github.com/seeleteam/go-seele/database"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 )
 

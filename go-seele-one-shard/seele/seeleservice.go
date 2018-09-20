@@ -180,7 +180,7 @@ func (s *SeeleService) initPool(conf *node.Config) error {
 
 		s.chainHeaderChangeChannels[i] = make(chan common.Hash, chainHeaderChangeBuffSize)
 		s.debtPools[i] = core.NewDebtPool(s.chains[i])
-		s.txPools[i] = core.NewTransactionPool(conf.SeeleConfig.TxConf, s.chains[i])
+		s.txPools[i] = core.NewTransactionPool(conf.SeeleConfig.TxConf, s.chains[i], s)
 
 		event.ChainHeaderChangedEventMananger.AddAsyncListener(s.chainHeaderChanged)
 		go s.MonitorChainHeaderChange(uint64(i))

@@ -21,17 +21,17 @@ type EventHandleMethod func(e Event)
 type Event interface {
 }
 
-type chainHeaderChangedMsg struct {
+type ChainHeaderChangedMsg struct {
 	HeaderHash	common.Hash
-	chainNum	uint64
+	ChainNum	uint64
 }
 
-type handleNewMinedBlockMsg struct {
-	block       *types.Block
-	chainNum    uint64
+type HandleNewMinedBlockMsg struct {
+	Block       *types.Block
+	ChainNum    uint64
 }
 
-type handleNewTxMsg struct {
+type HandleNewTxMsg struct {
 	tx          *types.Transaction
 	chainNum    uint64
 }

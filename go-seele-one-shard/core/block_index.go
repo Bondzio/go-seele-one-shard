@@ -10,7 +10,6 @@ import (
 
 	"github.com/orcaman/concurrent-map"
 	"github.com/seeleteam/go-seele/common"
-	"github.com/seeleteam/go-seele/core/state"
 	"github.com/seeleteam/go-seele/core/types"
 )
 
@@ -70,9 +69,9 @@ func (bf *BlockLeaves) GetBestBlock() *types.Block {
 }
 
 // GetBestStateDB gets the state DB of the best block index in the block leaves
-func (bf *BlockLeaves) GetBestStateDB() *state.Statedb {
-	return bf.GetBestBlockIndex().state
-}
+//func (bf *BlockLeaves) GetBestStateDB() *state.Statedb {
+//	return bf.GetBestBlockIndex().state
+//}
 
 // GetBlockIndexByHash gets the block index with the specified hash in the block leaves
 func (bf *BlockLeaves) GetBlockIndexByHash(hash common.Hash) *BlockIndex {

@@ -12,13 +12,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/seeleteam/go-seele-one-shard/log"
-	"github.com/seeleteam/go-seele-one-shard/log/comm"
-	"github.com/seeleteam/go-seele-one-shard/metrics"
-	miner2 "github.com/seeleteam/go-seele-one-shard/miner"
-	"github.com/seeleteam/go-seele-one-shard/monitor"
-	"github.com/seeleteam/go-seele-one-shard/node"
-	"github.com/seeleteam/go-seele-one-shard/seele"
+	"github.com/seeleteam/go-seele/log"
+	"github.com/seeleteam/go-seele/log/comm"
+	"github.com/seeleteam/go-seele/metrics"
+	miner2 "github.com/seeleteam/go-seele/miner"
+	"github.com/seeleteam/go-seele/monitor"
+	"github.com/seeleteam/go-seele/node"
+	"github.com/seeleteam/go-seele/seele"
 	"github.com/spf13/cobra"
 )
 

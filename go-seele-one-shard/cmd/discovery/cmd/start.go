@@ -10,9 +10,9 @@ import (
 	"net"
 	"sync"
 
-	"github.com/seeleteam/go-seele-one-shard/common"
-	"github.com/seeleteam/go-seele-one-shard/crypto"
-	"github.com/seeleteam/go-seele-one-shard/p2p/discovery"
+	"github.com/seeleteam/go-seele/common"
+	"github.com/seeleteam/go-seele/crypto"
+	"github.com/seeleteam/go-seele/p2p/discovery"
 	"github.com/spf13/cobra"
 )
 

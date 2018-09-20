@@ -17,7 +17,7 @@ import (
 	"github.com/seeleteam/go-seele/core/types"
 	"github.com/seeleteam/go-seele/event"
 	"github.com/seeleteam/go-seele/log"
-	"github.com/seeleteam/go-seele/seele"
+
 )
 
 var (
@@ -32,6 +32,10 @@ const overTimeInterval = 3 * time.Hour
 type blockchain interface {
 	GetCurrentState() (*state.Statedb, error)
 	GetStore() store.BlockchainStore
+}
+
+type SeeleBackendForTxPool interface {
+	GetCurrentState() (*state.Statedb, error)
 }
 
 type pooledTx struct {
@@ -55,11 +59,12 @@ type TransactionPool struct {
 	pendingQueue  *pendingQueue
 	processingTxs map[common.Hash]struct{}
 	log           *log.SeeleLog
+	seele		  SeeleBackendForTxPool
 	chainNum      uint64
 }
 
 // NewTransactionPool creates and returns a transaction pool.
-func NewTransactionPool(config TransactionPoolConfig, chain blockchain, chainNum uint64) *TransactionPool {
+func NewTransactionPool(config TransactionPoolConfig, chain blockchain, chainNum uint64, seele SeeleBackendForTxPool) *TransactionPool {
 	pool := &TransactionPool{
 		config:        config,
 		chain:         chain,
@@ -68,6 +73,7 @@ func NewTransactionPool(config TransactionPoolConfig, chain blockchain, chainNum
 		processingTxs: make(map[common.Hash]struct{}),
 		log:           log.GetLogger("txpool"),
 		chainNum:      chainNum,
+		seele:    	   seele,
 	}
 
 	return pool
@@ -181,7 +187,7 @@ func (pool *TransactionPool) AddTransaction(tx *types.Transaction) error {
 		return nil
 	}
 	// TODO: make sure this state is locked
-	statedb, err := seele.GetCurrentState()
+	statedb, err := pool.seele.GetCurrentState()
 	if err != nil {
 		return fmt.Errorf("get current state db failed, error %s", err)
 	}
@@ -255,7 +261,7 @@ func (pool *TransactionPool) removeTransactions() {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
-	state, err := seele.GetCurrentState()
+	state, err := pool.seele.GetCurrentState()
 	if err != nil {
 		pool.log.Warn("failed to get current state, err: %s", err)
 		return

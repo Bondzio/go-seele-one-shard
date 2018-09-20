@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/seeleteam/go-seele-one-shard/cmd/util"
+	"github.com/seeleteam/go-seele/cmd/util"
 	"github.com/spf13/cobra"
 )
 

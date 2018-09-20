@@ -56,7 +56,7 @@ type Block struct {
 	Header       *BlockHeader   // Header is the block header, a block header is about 165byte
 	Transactions []*Transaction // Transactions is the block payload
 	Debts        []*Debt        // Debts for cross shard transaction
-	chainNum     uint64
+	ChainNum     uint64
 }
 
 // NewBlock creates a new block. The input header is copied so that
@@ -67,7 +67,7 @@ type Block struct {
 func NewBlock(header *BlockHeader, txs []*Transaction, receipts []*Receipt, debts []*Debt, chainNum uint64) *Block {
 	block := &Block{
 		Header: header.Clone(),
-		chainNum: chainNum,
+		ChainNum: chainNum,
 	}
 
 	// Copy the transactions and update the transaction trie root hash.
