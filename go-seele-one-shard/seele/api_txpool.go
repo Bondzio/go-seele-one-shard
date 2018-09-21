@@ -40,7 +40,7 @@ package seele
 
  // GetBlockTransactionCountByHeight returns the count of transactions in the block with the given height.
  func (api *TransactionPoolAPI) GetBlockTransactionCountByHeight(height int64) (int, error) {
- 	block, err := getBlock(api.s.chain, height)
+ 	block, err := getBlock(api.s.chains[0], height)
  	if err != nil {
  		return 0, err
  	}
@@ -50,7 +50,7 @@ package seele
 
  // GetBlockTransactionCountByHash returns the count of transactions in the block with the given hash.
  func (api *TransactionPoolAPI) GetBlockTransactionCountByHash(blockHash string) (int, error) {
- 	store := api.s.chain.GetStore()
+ 	store := api.s.chains[0].GetStore()
  	hashByte, err := hexutil.HexToBytes(blockHash)
  	if err != nil {
  		return 0, err

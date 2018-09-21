@@ -42,7 +42,7 @@ var (
 
 const (
 	// number of chains
-	numOfChains = 10
+	numOfChains = 4
 )
 
 // SeeleBackend wraps all methods required for minier.
@@ -258,7 +258,10 @@ out:
 				}
 
 				miner.log.Info("block and notify p2p saved successfully")
-				event.BlockMinedEventManager.Fire(result.block) // notify p2p to broadcast the block
+				var NewMinedBlockMsg event.HandleNewMinedBlockMsg
+				NewMinedBlockMsg.Block = result.block
+				NewMinedBlockMsg.ChainNum = result.block.ChainNum
+				event.BlockMinedEventManager.Fire(NewMinedBlockMsg) // notify p2p to broadcast the block
 				break
 			}
 
@@ -318,7 +321,7 @@ func (miner *Miner) prepareNewBlock(chainNum uint64) error {
 		return fmt.Errorf("failed to apply transaction %s", err)
 	}
 
-	miner.log.Info("committing a new task to engine, height:%d, difficult:%d", header.Height, header.Difficulty)
+	miner.log.Info("committing a new task to engine, height:%d, difficult:%d, chainNum:%d", header.Height, header.Difficulty, miner.current.chainNum)
 	miner.commitTask(miner.current)
 
 	return nil
@@ -379,7 +382,7 @@ func (miner *Miner) Hashrate() float64 {
 }
 
 func (miner *Miner) NewMiningLoop() error {
-	var miningKeyHashInt *big.Int
+	miningKeyHashInt := new(big.Int)
 
 	// try to get a random key from previous transactions and 
 	// determine which chain the miner will work on
@@ -389,9 +392,9 @@ func (miner *Miner) NewMiningLoop() error {
 		miner.log.Info("Failed to get the mining key")
 		return err
 	}
+	fmt.Printf("after getting Mining key: %s", miningKeyHash.ToHex())
 	miningKeyHashInt.SetBytes(miningKeyHash.Bytes())
 	chainNum := miner.getChainNumByMiningKey(miningKeyHashInt)
-
 	// try to prepare the new block on a certain chain
 	if err := miner.prepareNewBlock(chainNum); err != nil {
 		return err

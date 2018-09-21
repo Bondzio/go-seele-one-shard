@@ -5,7 +5,7 @@
 
 package seele
 
-// import (
+ import (
 // 	"fmt"
 // 	"os"
 // 	"path/filepath"
@@ -13,8 +13,8 @@ package seele
 // 	"runtime/pprof"
 
 // 	"github.com/seeleteam/go-seele/common"
-// 	"github.com/seeleteam/go-seele/core/types"
-// )
+ 	"github.com/seeleteam/go-seele/core/types"
+)
 
  // PrivateDebugAPI provides an API to access full node-related information for debug.
  type PrivateDebugAPI struct {
@@ -26,15 +26,15 @@ package seele
  	return &PrivateDebugAPI{s}
  }
 
-// // PrintBlock retrieves a block and returns its pretty printed form, when height is -1 the chain head is returned
-// func (api *PrivateDebugAPI) PrintBlock(height int64) (*types.Block, error) {
-// 	block, err := getBlock(api.s.chain, height)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+ // PrintBlock retrieves a block and returns its pretty printed form, when height is -1 the chain head is returned
+ func (api *PrivateDebugAPI) PrintBlock(height int64) (*types.Block, error) {
+ 	block, err := getBlock(api.s.chains[0], height)
+ 	if err != nil {
+ 		return nil, err
+ 	}
 
-// 	return block, nil
-// }
+ 	return block, nil
+}
 
 // // GetTxPoolContent returns the transactions contained within the transaction pool
 // func (api *PrivateDebugAPI) GetTxPoolContent() (map[string][]map[string]interface{}, error) {

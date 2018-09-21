@@ -202,11 +202,11 @@ func (s *SeeleService) initPool(conf *node.Config) error {
 // add forked transaction back
 // deleted invalid transaction
 func (s *SeeleService) chainHeaderChanged(e event.Event) {
-	newHeader := e.(*event.ChainHeaderChangedMsg).HeaderHash 
+	newHeader := e.(event.ChainHeaderChangedMsg).HeaderHash 
 	if newHeader.IsEmpty() {
 		return
 	}
-	chainNum := e.(*event.ChainHeaderChangedMsg).ChainNum
+	chainNum := e.(event.ChainHeaderChangedMsg).ChainNum
 	s.chainHeaderChangeChannels[chainNum] <- newHeader
 }
 

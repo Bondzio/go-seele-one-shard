@@ -34,7 +34,7 @@ const (
 	BlockChainRecoveryPointFile = "recoveryPoint.json"
 
 	// number of chains
-	numOfChains = 10
+	numOfChains = 4
 )
 
 // statusData the structure for peers to exchange status

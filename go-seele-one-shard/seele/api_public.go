@@ -12,10 +12,10 @@ package seele
 
  	"github.com/seeleteam/go-seele/common"
 // 	"github.com/seeleteam/go-seele/common/hexutil"
-// 	"github.com/seeleteam/go-seele/core"
+ 	"github.com/seeleteam/go-seele/core"
 // 	"github.com/seeleteam/go-seele/core/state"
 // 	"github.com/seeleteam/go-seele/core/store"
-// 	"github.com/seeleteam/go-seele/core/types"
+ 	"github.com/seeleteam/go-seele/core/types"
 // 	"github.com/seeleteam/go-seele/crypto"
  )
 
@@ -176,30 +176,30 @@ package seele
 // 	return state.GetNonce(account), nil
 // }
 
-// // GetBlockHeight get the block height of the chain head
+// GetBlockHeight get the block height of the chain head
 // func (api *PublicSeeleAPI) GetBlockHeight() (uint64, error) {
 // 	block := api.s.chain.CurrentBlock()
 // 	return block.Header.Height, nil
 // }
 
 // // GetBlock returns the requested block.
-// func (api *PublicSeeleAPI) GetBlock(hashHex string, height int64, fulltx bool) (map[string]interface{}, error) {
-// 	if len(hashHex) > 0 {
-// 		return api.GetBlockByHash(hashHex, fulltx)
-// 	}
+//  func (api *PublicSeeleAPI) GetBlock(hashHex string, height int64, fulltx bool) (map[string]interface{}, error) {
+//  	if len(hashHex) > 0 {
+//  		return api.GetBlockByHash(hashHex, fulltx)
+//  	}
 
-// 	return api.GetBlockByHeight(height, fulltx)
-// }
+//  	return api.GetBlockByHeight(height, fulltx)
+//  }
 
 // // GetBlockByHeight returns the requested block. When blockNr is -1 the chain head is returned. When fullTx is true all
 // // transactions in the block are returned in full detail, otherwise only the transaction hash is returned
-// func (api *PublicSeeleAPI) GetBlockByHeight(height int64, fulltx bool) (map[string]interface{}, error) {
-// 	block, err := getBlock(api.s.chain, height)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+//  func (api *PublicSeeleAPI) GetBlockByHeight(height int64, fulltx bool) (map[string]interface{}, error) {
+//  	block, err := getBlock(api.s.chains[0], height)
+//  	if err != nil {
+//  		return nil, err
+//  	}
 
-// 	return rpcOutputBlock(block, fulltx, api.s.chain.GetStore())
+//  	return rpcOutputBlock(block, fulltx, api.s.chains[0].GetStore())
 // }
 
 // // GetBlocks returns the size of requested block. When the blockNr is -1 the chain head is returned.
@@ -457,18 +457,18 @@ package seele
 // 	return outMap, nil
 // }
 
-// // getBlock returns block by height,when height is -1 the chain head is returned
-// func getBlock(chain *core.Blockchain, height int64) (*types.Block, error) {
-// 	var block *types.Block
-// 	if height < 0 {
-// 		block = chain.CurrentBlock()
-// 	} else {
-// 		var err error
-// 		block, err = chain.GetStore().GetBlockByHeight(uint64(height))
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 	}
+ // getBlock returns block by height,when height is -1 the chain head is returned
+ func getBlock(chain *core.Blockchain, height int64) (*types.Block, error) {
+ 	var block *types.Block
+ 	if height < 0 {
+ 		block = chain.CurrentBlock()
+ 	} else {
+ 		var err error
+ 		block, err = chain.GetStore().GetBlockByHeight(uint64(height))
+ 		if err != nil {
+ 			return nil, err
+ 		}
+ 	}
 
-// 	return block, nil
-// }
+ 	return block, nil
+ }

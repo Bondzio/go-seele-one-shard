@@ -322,7 +322,6 @@ func (bc *Blockchain) doWriteBlock(block *types.Block) error {
 	currentTd := new(big.Int).Add(previousTd, block.Header.Difficulty)
 	blockIndex := NewBlockIndex(currentBlock, currentTd)
 	isHead := bc.blockLeaves.IsBestBlockIndex(blockIndex)
-
 	/////////////////////////////////////////////////////////////////
 	// PAY ATTENTION TO THE ORDER OF WRITING DATA INTO DB.
 	// OTHERWISE, THERE MAY BE INCONSISTENT DATA.
@@ -370,7 +369,7 @@ func (bc *Blockchain) doWriteBlock(block *types.Block) error {
 	bc.blockLeaves.Add(blockIndex)
 	bc.blockLeaves.RemoveByHash(block.Header.PreviousBlockHash)
 
-	var HeaderChangedMsg *event.ChainHeaderChangedMsg
+	var HeaderChangedMsg event.ChainHeaderChangedMsg
 	HeaderChangedMsg.HeaderHash = block.HeaderHash
 	HeaderChangedMsg.ChainNum = block.ChainNum
 
@@ -391,7 +390,6 @@ func (bc *Blockchain) doWriteBlock(block *types.Block) error {
 	if err = bc.seele.UpdateDBRootHash(stateRootHash); err != nil {
 		return err
 	} 
-
 	return nil
 }
 

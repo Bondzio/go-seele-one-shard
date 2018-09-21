@@ -277,10 +277,10 @@ func (p *SeeleProtocol) handleNewTx(e event.Event) {
 	}
 
 	var NewTxHashMsg transactionHashMsg
-	NewTxHashMsg.chainNum = e.(*event.HandleNewTxMsg).ChainNum
-	NewTxHashMsg.txHash = e.(*event.HandleNewTxMsg).Tx.Hash
+	NewTxHashMsg.chainNum = e.(event.HandleNewTxMsg).ChainNum
+	NewTxHashMsg.txHash = e.(event.HandleNewTxMsg).Tx.Hash
 	
-	tx := e.(*event.HandleNewTxMsg).Tx
+	tx := e.(event.HandleNewTxMsg).Tx
 	// find shardId by tx from address.
 	shardId := tx.Data.From.Shard()
 	p.peerSet.ForEach(shardId, func(peer *peer) bool {
@@ -315,8 +315,8 @@ func (p *SeeleProtocol) handleNewTx(e event.Event) {
 // }
 
 func (p *SeeleProtocol) handleNewMinedBlock(e event.Event) {
-	block := e.(*event.HandleNewMinedBlockMsg).Block
-	chainNum := e.(*event.HandleNewMinedBlockMsg).ChainNum
+	block := e.(event.HandleNewMinedBlockMsg).Block
+	chainNum := e.(event.HandleNewMinedBlockMsg).ChainNum
 
 	var blkHashMsg  blockHashMsg
 	blkHashMsg.blockHash = block.HeaderHash
