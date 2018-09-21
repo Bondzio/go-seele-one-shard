@@ -142,7 +142,7 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 		}
 	
 		chainNumString := strconv.Itoa(i)
-		recoveryPointFile := filepath.Join(serviceContext.DataDir, BlockChainRecoveryPointFile, chainNumString)
+		recoveryPointFile := filepath.Join(serviceContext.DataDir, chainNumString, BlockChainRecoveryPointFile)
 		s.chains[i], err = core.NewBlockchain(bcStore, recoveryPointFile, uint64(i), s)
 		if err != nil {
 			for i := 0; i < numOfChains; i++ {

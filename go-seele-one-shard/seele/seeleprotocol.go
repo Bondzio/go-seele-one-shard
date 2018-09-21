@@ -162,7 +162,8 @@ func (sp *SeeleProtocol) synchronise(bestPeers []*bestPeerForEachChain) {
 	//}
 	//pHead, pTd := p.Head()
 	
-	for i, bp := range bestPeers {
+	for i, bp := range bestPeers{
+		if bp == nil {continue}
 		block := sp.chain[i].CurrentBlock()
 		localTD, err := sp.chain[i].GetStore().GetBlockTotalDifficulty(block.HeaderHash)
 		if err != nil {

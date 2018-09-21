@@ -109,6 +109,7 @@ func (n *Node) Start() error {
 	}
 	n.server = p2pServer
 
+	fmt.Printf("before starting services")
 	// 4. Start services
 	for _, service := range n.services {
 		if err := service.Start(p2pServer); err != nil {
@@ -119,6 +120,7 @@ func (n *Node) Start() error {
 		}
 	}
 
+	fmt.Printf("before starting RPC")
 	// 5. Start RPC server
 	if err := n.startRPC(n.services); err != nil {
 		n.log.Error("got error when start rpc %s", err)

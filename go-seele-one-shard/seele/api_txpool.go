@@ -5,14 +5,14 @@
 
 package seele
 
-// import (
+ import (
 // 	"errors"
 // 	"strconv"
 
-// 	"github.com/seeleteam/go-seele/common"
-// 	"github.com/seeleteam/go-seele/common/hexutil"
+ 	"github.com/seeleteam/go-seele/common"
+ 	"github.com/seeleteam/go-seele/common/hexutil"
 // 	"github.com/seeleteam/go-seele/core/types"
-// )
+ )
 
 // var (
 // 	errTransactionNotFound = errors.New("transaction not found")
@@ -29,41 +29,41 @@ package seele
  	return &TransactionPoolAPI{s}
  }
 
-// // GetBlockTransactionCount returns the count of transactions in the block with the given block hash or height.
-// func (api *TransactionPoolAPI) GetBlockTransactionCount(blockHash string, height int64) (int, error) {
-// 	if len(blockHash) > 0 {
-// 		return api.GetBlockTransactionCountByHash(blockHash)
-// 	}
+ // GetBlockTransactionCount returns the count of transactions in the block with the given block hash or height.
+ func (api *TransactionPoolAPI) GetBlockTransactionCount(blockHash string, height int64) (int, error) {
+ 	if len(blockHash) > 0 {
+		return api.GetBlockTransactionCountByHash(blockHash)
+ 	}
 
-// 	return api.GetBlockTransactionCountByHeight(height)
-// }
+ 	return api.GetBlockTransactionCountByHeight(height)
+ }
 
-// // GetBlockTransactionCountByHeight returns the count of transactions in the block with the given height.
-// func (api *TransactionPoolAPI) GetBlockTransactionCountByHeight(height int64) (int, error) {
-// 	block, err := getBlock(api.s.chain, height)
-// 	if err != nil {
-// 		return 0, err
-// 	}
+ // GetBlockTransactionCountByHeight returns the count of transactions in the block with the given height.
+ func (api *TransactionPoolAPI) GetBlockTransactionCountByHeight(height int64) (int, error) {
+ 	block, err := getBlock(api.s.chain, height)
+ 	if err != nil {
+ 		return 0, err
+ 	}
 
-// 	return len(block.Transactions), nil
-// }
+ 	return len(block.Transactions), nil
+ }
 
-// // GetBlockTransactionCountByHash returns the count of transactions in the block with the given hash.
-// func (api *TransactionPoolAPI) GetBlockTransactionCountByHash(blockHash string) (int, error) {
-// 	store := api.s.chain.GetStore()
-// 	hashByte, err := hexutil.HexToBytes(blockHash)
-// 	if err != nil {
-// 		return 0, err
-// 	}
+ // GetBlockTransactionCountByHash returns the count of transactions in the block with the given hash.
+ func (api *TransactionPoolAPI) GetBlockTransactionCountByHash(blockHash string) (int, error) {
+ 	store := api.s.chain.GetStore()
+ 	hashByte, err := hexutil.HexToBytes(blockHash)
+ 	if err != nil {
+ 		return 0, err
+ 	}
 
-// 	hash := common.BytesToHash(hashByte)
-// 	block, err := store.GetBlock(hash)
-// 	if err != nil {
-// 		return 0, err
-// 	}
+ 	hash := common.BytesToHash(hashByte)
+ 	block, err := store.GetBlock(hash)
+ 	if err != nil {
+ 		return 0, err
+ 	}
 
-// 	return len(block.Transactions), nil
-// }
+ 	return len(block.Transactions), nil
+ }
 
 // // GetTransactionByBlockIndex returns the transaction in the block with the given block hash/height and index.
 // func (api *TransactionPoolAPI) GetTransactionByBlockIndex(hashHex string, height int64, index uint) (map[string]interface{}, error) {

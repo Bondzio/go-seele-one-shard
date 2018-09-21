@@ -84,7 +84,9 @@ var startCmd = &cobra.Command{
 			}
 		}
 
+		fmt.Printf("before seeleNode.Start")
 		err = seeleNode.Start()
+		fmt.Printf("after seeleNode.Start")
 		if err != nil {
 			fmt.Printf("got error when start node: %s\n", err)
 			return

@@ -5,19 +5,19 @@
 
 package seele
 
-// import (
+ import (
 // 	"fmt"
-// 	"math/big"
+ 	"math/big"
 // 	"strings"
 
-// 	"github.com/seeleteam/go-seele/common"
+ 	"github.com/seeleteam/go-seele/common"
 // 	"github.com/seeleteam/go-seele/common/hexutil"
 // 	"github.com/seeleteam/go-seele/core"
 // 	"github.com/seeleteam/go-seele/core/state"
 // 	"github.com/seeleteam/go-seele/core/store"
 // 	"github.com/seeleteam/go-seele/core/types"
 // 	"github.com/seeleteam/go-seele/crypto"
-// )
+ )
 
  // PublicSeeleAPI provides an API to access full node-related information.
  type PublicSeeleAPI struct {
@@ -41,11 +41,11 @@ package seele
 // 	MinerThread        int
 // }
 
-// // GetBalanceResponse response param for GetBalance api
-// type GetBalanceResponse struct {
-// 	Account common.Address
-// 	Balance *big.Int
-// }
+ // GetBalanceResponse response param for GetBalance api
+ type GetBalanceResponse struct {
+ 	Account common.Address
+ 	Balance *big.Int
+ }
 
 // // GetLogsResponse response param for GetLogs api
 // type GetLogsResponse struct {
@@ -126,22 +126,22 @@ package seele
 // 	}, nil
 // }
 
-// // GetBalance get balance of the account. if the account's address is empty, will get the coinbase balance
-// func (api *PublicSeeleAPI) GetBalance(account common.Address) (*GetBalanceResponse, error) {
-// 	if account.Equal(common.EmptyAddress) {
-// 		account = api.s.Miner().GetCoinbase()
-// 	}
+ // GetBalance get balance of the account. if the account's address is empty, will get the coinbase balance
+ func (api *PublicSeeleAPI) GetBalance(account common.Address) (*GetBalanceResponse, error) {
+ 	if account.Equal(common.EmptyAddress) {
+ 		account = api.s.Miner().GetCoinbase()
+ 	}
 
-// 	state, err := api.s.chain.GetCurrentState()
-// 	if err != nil {
-// 		return nil, err
-// 	}
+ 	state, err := api.s.GetCurrentState()
+ 	if err != nil {
+ 		return nil, err
+ 	}
 
-// 	return &GetBalanceResponse{
-// 		Account: account,
-// 		Balance: state.GetBalance(account),
-// 	}, nil
-// }
+ 	return &GetBalanceResponse{
+ 		Account: account,
+ 		Balance: state.GetBalance(account),
+ 	}, nil
+ }
 
 // // AddTx add a tx to miner
 // func (api *PublicSeeleAPI) AddTx(tx types.Transaction) (bool, error) {
