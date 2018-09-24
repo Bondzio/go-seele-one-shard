@@ -223,7 +223,10 @@ func (pool *TransactionPool) addTransactionWithStateInfo(tx *types.Transaction, 
 	pool.addTransaction(tx)
 
 	// fire event
-	event.TransactionInsertedEventManager.Fire(tx)
+	var NewTxMsg event.HandleNewTxMsg
+	NewTxMsg.Tx = tx
+	NewTxMsg.ChainNum = pool.chainNum
+	event.TransactionInsertedEventManager.Fire(NewTxMsg)
 
 	return nil
 }
