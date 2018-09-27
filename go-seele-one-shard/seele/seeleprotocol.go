@@ -590,6 +590,7 @@ handler:
 			chainNum := query.chainNum
 
 			if query.Hash != common.EmptyHash {
+				p.log.Info("Query Hash: %s", query.Hash.ToHex())
 				if head, err = p.chain[chainNum].GetStore().GetBlockHeader(query.Hash); err != nil {
 					p.log.Error("HandleMsg GetBlockHeader err from query hash. %s", err)
 					break

@@ -44,8 +44,13 @@ func (p *peerSet) bestPeer(shard uint) []*bestPeerForEachChain {
  		for i := 0; i < numOfChains; i++ {
 			_, td := p.HeadByChain(uint64(i))   
 			if bestPeers[i] == nil || td.Cmp(bestPeers[i].bestTd) > 0 {
-				bestPeers[i].bestPeer, bestPeers[i].bestTd = p, td
- 				bestPeers[i].chainNum = uint64(i)
+				//bestPeers[i].bestPeer, bestPeers[i].bestTd = p, td
+				 //bestPeers[i].chainNum = uint64(i)
+				 bestPeers[i] = &bestPeerForEachChain{
+					 bestPeer:	p,
+					 bestTd:	td,
+					 chainNum:	uint64(i),
+				 }
  			}
 		}
 

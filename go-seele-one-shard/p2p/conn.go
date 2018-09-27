@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	headBuffLength     = 8
+	headBuffLength     = 32
 	headBuffMagicStart = 0
 	headBuffMagicEnd   = 2
 	headBuffSizeStart  = 2
