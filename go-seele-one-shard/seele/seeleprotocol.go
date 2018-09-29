@@ -152,16 +152,8 @@ func (sp *SeeleProtocol) synchronise(bestPeers []*bestPeerForEachChain) {
 
 	if common.PrintExplosionLog {
 		sp.log.Debug("sp.synchronise called.")
-	}
+	}	
 
-	//block := sp.chain.CurrentBlock()
-	//localTD, err := sp.chain.GetStore().GetBlockTotalDifficulty(block.HeaderHash)
-	//if err != nil {
-	//	sp.log.Error("sp.synchronise GetBlockTotalDifficulty err.[%s]", err)
-	//	return
-	//}
-	//pHead, pTd := p.Head()
-	
 	for i, bp := range bestPeers{
 		if bp == nil {continue}
 		block := sp.chain[i].CurrentBlock()
@@ -171,10 +163,23 @@ func (sp *SeeleProtocol) synchronise(bestPeers []*bestPeerForEachChain) {
 			return
 		}
 		pHead, pTd := bp.bestPeer.HeadByChain(bp.chainNum)
+		sp.log.Debug("BestPeer Info, chainNum:%d pHead:%s", bp.chainNum, pHead.ToHex())
+
 		// if total difficulty is not smaller than remote peer td, then do not need synchronise.
 		if localTD.Cmp(pTd) >= 0 {
-			return
+			continue
 		}
+
+		event.BlockDownloaderEventManager.Fire(event.DownloaderStartEvent)
+		defer func() {
+			if err != nil {
+				sp.log.Info("download end with failed, err %s, chainNum: %d", err, bp.chainNum)
+				event.BlockDownloaderEventManager.Fire(event.DownloaderFailedEvent)
+			} else {
+				sp.log.Debug("download end success, chainNum: %d", bp.chainNum)
+				event.BlockDownloaderEventManager.Fire(event.DownloaderDoneEvent)
+			}
+		}()
 
 		err = sp.downloader.Synchronise(bp.bestPeer.peerStrID, bp.chainNum, pHead, pTd, localTD)
 		if err != nil {
@@ -183,12 +188,14 @@ func (sp *SeeleProtocol) synchronise(bestPeers []*bestPeerForEachChain) {
 			} else {
 				sp.log.Error("synchronise err. %s", err)
 			}
-			return
+			continue
 		}
 
 		//broadcast chain head
 		sp.broadcastChainHead(bp.chainNum)
 	}
+
+	return
 }
 
 func (sp *SeeleProtocol) broadcastChainHead(chainNum uint64) {
@@ -200,6 +207,7 @@ func (sp *SeeleProtocol) broadcastChainHead(chainNum uint64) {
 		return
 	}
 
+	sp.log.Info("broadcastChainHead: ChainNum: %d, head: %s", chainNum, head.ToHex())
 	status := &chainHeadStatus{
 		TD:           localTD,
 		CurrentBlock: head,
@@ -330,8 +338,8 @@ func (p *SeeleProtocol) handleNewMinedBlock(e event.Event) {
 		return true
 	})
 
-	p.log.Debug("handleNewMinedBlock broadcast chainhead changed. new block: %d %s <- %s ",
-		block.Header.Height, block.HeaderHash.ToHex(), block.Header.PreviousBlockHash.ToHex())
+	p.log.Debug("handleNewMinedBlock broadcast chainhead changed. chainNum: %d, new block: %d %s <- %s ",
+		chainNum, block.Header.Height, block.HeaderHash.ToHex(), block.Header.PreviousBlockHash.ToHex())
 
 	p.broadcastChainHead(chainNum)
 }
@@ -590,7 +598,7 @@ handler:
 			chainNum := query.chainNum
 
 			if query.Hash != common.EmptyHash {
-				p.log.Info("Query Hash: %s", query.Hash.ToHex())
+				p.log.Info("original chainNum: %d, chainNum: %d, Query Hash: %s", query.chainNum, chainNum, query.Hash.ToHex())
 				if head, err = p.chain[chainNum].GetStore().GetBlockHeader(query.Hash); err != nil {
 					p.log.Error("HandleMsg GetBlockHeader err from query hash. %s", err)
 					break
@@ -598,7 +606,7 @@ handler:
 				orgNum = head.Height
 			}
 
-			p.log.Debug("Received downloader.GetBlockHeadersMsg start %d, amount %d", orgNum, query.Amount)
+			p.log.Debug("Received downloader.GetBlockHeadersMsg chainNum %d, start %d, amount %d", chainNum, orgNum, query.Amount)
 			maxHeight := p.chain[chainNum].CurrentBlock().Header.Height
 			for cnt := uint64(0); cnt < query.Amount; cnt++ {
 				var curNum uint64
@@ -652,7 +660,7 @@ handler:
 				orgNum = head.Height
 			}
 
-			p.log.Debug("Received downloader.GetBlocksMsg length %d, start %d, end %d", query.Amount, orgNum, orgNum+query.Amount)
+			p.log.Debug("Received downloader.GetBlocksMsg length %d, start %d, end %d, chainNum: %d", query.Amount, orgNum, orgNum+query.Amount, chainNum)
 
 			totalLen := 0
 			var numL []uint64
@@ -704,6 +712,7 @@ handler:
 			}
 
 			p.log.Debug("Received statusChainHeadMsgCode")
+			p.log.Info("Received peer status: ChainNum: %d, peer head: %s", status.ChainNum, status.CurrentBlock.ToHex())
 			peer.SetHead(status.CurrentBlock, status.TD, status.ChainNum)
 			p.syncCh <- struct{}{}
 

@@ -288,9 +288,9 @@ func (bc *Blockchain) doWriteBlock(block *types.Block) error {
 	}
 
 	// Validate receipts root hash.
-	if receiptsRootHash := types.ReceiptMerkleRootHash(receipts); !receiptsRootHash.Equal(block.Header.ReceiptHash) {
-		return ErrBlockReceiptHashMismatch
-	}
+	//if receiptsRootHash := types.ReceiptMerkleRootHash(receipts); !receiptsRootHash.Equal(block.Header.ReceiptHash) {
+	//	return ErrBlockReceiptHashMismatch
+	//}
 
 
 	// Validate state root hash.

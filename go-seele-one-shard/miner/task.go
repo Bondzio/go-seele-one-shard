@@ -43,8 +43,8 @@ func (task *Task) applyTransactionsAndDebts(seele SeeleBackend, statedb *state.S
 
 	task.chooseTransactions(seele, statedb, log, size)
 
-	log.Info("mining block height:%d, reward:%s, transaction number:%d",
-		task.header.Height, reward, len(task.txs))
+	log.Info("chainNum:%d, mining block height:%d, reward:%s, transaction number:%d",
+		task.chainNum, task.header.Height, reward, len(task.txs))
 
 	root, err := statedb.Hash()
 	if err != nil {

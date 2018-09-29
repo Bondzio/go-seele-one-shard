@@ -42,7 +42,7 @@ var (
 
 const (
 	// number of chains
-	numOfChains = 4
+	numOfChains = 2
 )
 
 // SeeleBackend wraps all methods required for minier.
