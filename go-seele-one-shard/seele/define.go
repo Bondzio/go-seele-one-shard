@@ -34,7 +34,7 @@ const (
 	BlockChainRecoveryPointFile = "recoveryPoint.json"
 
 	// number of chains
-	numOfChains = 2
+	numOfChains = 4
 )
 
 // statusData the structure for peers to exchange status
@@ -54,8 +54,9 @@ type blockHeadersQuery struct {
 	Hash    common.Hash // Block hash from which to retrieve headers (excludes Number)
 	Number  uint64      // Block number from which to retrieve headers (excludes Hash)
 	Amount  uint64      // Maximum number of headers to retrieve
+	ChainNum uint64     // chain number
 	Reverse bool        // Query direction (false = rising towards latest, true = falling towards genesis)
-	chainNum uint64     // chain number
+	
 }
 
 type blocksQuery struct {
@@ -63,7 +64,7 @@ type blocksQuery struct {
 	Hash   common.Hash // Block hash from which to retrieve (excludes Number)
 	Number uint64      // Block hash from which to retrieve (excludes Hash)
 	Amount uint64      // Maximum number of headers to retrieve
-	chainNum uint64
+	ChainNum uint64
 }
 
 // newBlockHash is the network packet for the block announcements.
@@ -80,21 +81,21 @@ type chainHeadStatus struct {
 }
 
 type transactionHashMsg struct {
-	txHash 		common.Hash
-	chainNum	uint64
+	TxHash 		common.Hash
+	ChainNum	uint64
 }
 
 type transactionMsg struct {
-	tx    		*types.Transaction
-	chainNum 	uint64
+	Tx    		*types.Transaction
+	ChainNum 	uint64
 }
 
 type blockHashMsg struct {
-	blockHash   common.Hash
-	chainNum	uint64
+	BlockHash   common.Hash
+	ChainNum	uint64
 }
 
 type blockMsg struct {
-	block 		*types.Block
-	chainNum 	uint64
+	Block 		*types.Block
+	ChainNum 	uint64
 }

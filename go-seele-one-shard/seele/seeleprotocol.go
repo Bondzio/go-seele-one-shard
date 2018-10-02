@@ -207,7 +207,7 @@ func (sp *SeeleProtocol) broadcastChainHead(chainNum uint64) {
 		return
 	}
 
-	sp.log.Info("broadcastChainHead: ChainNum: %d, head: %s", chainNum, head.ToHex())
+	sp.log.Info("broadcastChainHead, ChainNum: %d, head: %s", chainNum, head.ToHex())
 	status := &chainHeadStatus{
 		TD:           localTD,
 		CurrentBlock: head,
@@ -232,8 +232,8 @@ func (sp *SeeleProtocol) syncTransactions(p *peer) {
  	for i := 0; i < numOfChains; i++ {
 		pendingInOnePool := sp.txPool[i].GetTransactions(false, true)
 		for _, tx := range pendingInOnePool {
-			txMsg.tx = tx
-			txMsg.chainNum = uint64(i)
+			txMsg.Tx = tx
+			txMsg.ChainNum = uint64(i)
 			pending = append(pending, txMsg)
 		} 
 	}
@@ -285,8 +285,8 @@ func (p *SeeleProtocol) handleNewTx(e event.Event) {
 	}
 
 	var NewTxHashMsg transactionHashMsg
-	NewTxHashMsg.chainNum = e.(event.HandleNewTxMsg).ChainNum
-	NewTxHashMsg.txHash = e.(event.HandleNewTxMsg).Tx.Hash
+	NewTxHashMsg.ChainNum = e.(event.HandleNewTxMsg).ChainNum
+	NewTxHashMsg.TxHash = e.(event.HandleNewTxMsg).Tx.Hash
 	
 	tx := e.(event.HandleNewTxMsg).Tx
 	// find shardId by tx from address.
@@ -327,8 +327,8 @@ func (p *SeeleProtocol) handleNewMinedBlock(e event.Event) {
 	chainNum := e.(event.HandleNewMinedBlockMsg).ChainNum
 
 	var blkHashMsg  blockHashMsg
-	blkHashMsg.blockHash = block.HeaderHash
-	blkHashMsg.chainNum  = chainNum
+	blkHashMsg.BlockHash = block.HeaderHash
+	blkHashMsg.ChainNum  = chainNum
 
 	p.peerSet.ForEach(common.LocalShardNumber, func(peer *peer) bool {
 		err := peer.SendBlockHash(&blkHashMsg)
@@ -397,8 +397,8 @@ func (s *SeeleProtocol) handleDelPeer(peer *p2p.Peer) {
 }
 
 func (p *SeeleProtocol) SendDifferentShardTx(txMsg *transactionMsg, shard uint) {
-	tx := txMsg.tx
-	chainNum := txMsg.chainNum
+	tx := txMsg.Tx
+	chainNum := txMsg.ChainNum
 	sendTxFun := func(peer *peer) bool {
 		if !peer.knownTxs.Contains(tx.Hash) {
 			err := peer.sendTransaction(tx, chainNum)
@@ -449,7 +449,7 @@ handler:
 				continue
 			}
 
-			txHash := txHashMsg.txHash
+			txHash := txHashMsg.TxHash
 			if common.PrintExplosionLog {
 				p.log.Debug("got tx hash %s", txHash.ToHex())
 			}
@@ -475,8 +475,8 @@ handler:
 				continue
 			}
 
-			txHash := txHashMsg.txHash
-			chainNum := txHashMsg.chainNum
+			txHash := txHashMsg.TxHash
+			chainNum := txHashMsg.ChainNum
 
 			if common.PrintExplosionLog {
 				p.log.Debug("got tx request %s", txHash.ToHex())
@@ -507,8 +507,8 @@ handler:
 			}
 
 			for _, txMsg := range txMsgs {
-				tx := txMsg.tx
-				chainNum := txMsg.chainNum
+				tx := txMsg.Tx
+				chainNum := txMsg.ChainNum
 				peer.knownTxs.Add(tx.Hash, nil)
 				shard := tx.Data.From.Shard()
 				if shard != common.LocalShardNumber {
@@ -527,7 +527,7 @@ handler:
 				continue
 			}
 
-			blockHash := blkHashMsg.blockHash
+			blockHash := blkHashMsg.BlockHash
 
 			p.log.Debug("got block hash msg %s", blockHash.ToHex())
 
@@ -548,8 +548,8 @@ handler:
 				continue
 			}
 
-			blockHash := blkHashMsg.blockHash
-			chainNum := blkHashMsg.chainNum
+			blockHash := blkHashMsg.BlockHash
+			chainNum := blkHashMsg.ChainNum
 
 			p.log.Debug("got block request msg %s", blockHash.ToHex())
 			block, err := p.chain[chainNum].GetStore().GetBlock(blockHash)
@@ -559,8 +559,8 @@ handler:
 			}
 
 			var blkMsg blockMsg
-			blkMsg.block = block
-			blkMsg.chainNum = chainNum
+			blkMsg.Block = block
+			blkMsg.ChainNum = chainNum
 
 			err = peer.SendBlock(&blkMsg)
 			if err != nil {
@@ -575,8 +575,8 @@ handler:
 				continue
 			}
 
-			block := blkMsg.block
-			chainNum := blkMsg.chainNum
+			block := blkMsg.Block
+			chainNum := blkMsg.ChainNum
 
 			p.log.Info("got block message and save it. height:%d, hash:%s", block.Header.Height, block.HeaderHash.ToHex())
 			peer.knownBlocks.Add(block.HeaderHash, nil)
@@ -595,10 +595,10 @@ handler:
 			var headList []*types.BlockHeader
 			var head *types.BlockHeader
 			orgNum := query.Number
-			chainNum := query.chainNum
+			chainNum := query.ChainNum
 
 			if query.Hash != common.EmptyHash {
-				p.log.Info("original chainNum: %d, chainNum: %d, Query Hash: %s", query.chainNum, chainNum, query.Hash.ToHex())
+				p.log.Info("chainNum: %d, Query Hash: %s", chainNum, query.Hash.ToHex())
 				if head, err = p.chain[chainNum].GetStore().GetBlockHeader(query.Hash); err != nil {
 					p.log.Error("HandleMsg GetBlockHeader err from query hash. %s", err)
 					break
@@ -651,7 +651,7 @@ handler:
 			var head *types.BlockHeader
 			var block *types.Block
 			orgNum := query.Number
-			chainNum := query.chainNum
+			chainNum := query.ChainNum
 			if query.Hash != common.EmptyHash {
 				if head, err = p.chain[chainNum].GetStore().GetBlockHeader(query.Hash); err != nil {
 					p.log.Error("HandleMsg GetBlockHeader err. %s", err)

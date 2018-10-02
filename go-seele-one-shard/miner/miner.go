@@ -42,7 +42,7 @@ var (
 
 const (
 	// number of chains
-	numOfChains = 2
+	numOfChains = 4
 )
 
 // SeeleBackend wraps all methods required for minier.
@@ -250,7 +250,7 @@ out:
 					break
 				}
 
-				miner.log.Info("found a new mined block, block height:%d, hash:%s", result.block.Header.Height, result.block.HeaderHash.ToHex())
+				miner.log.Info("found a new mined block, chainNum: %d, block height: %d, hash: %s", result.block.ChainNum, result.block.Header.Height, result.block.HeaderHash.ToHex())
 				ret := miner.saveBlock(result)
 				if ret != nil {
 					miner.log.Error("failed to save the block, for %s", ret.Error())
@@ -321,7 +321,7 @@ func (miner *Miner) prepareNewBlock(chainNum uint64) error {
 		return fmt.Errorf("failed to apply transaction %s", err)
 	}
 
-	miner.log.Info("committing a new task to engine, height:%d, difficult:%d, chainNum:%d", header.Height, header.Difficulty, miner.current.chainNum)
+	miner.log.Info("committing a new task to engine, chainNum:%d, height:%d, difficult:%d", miner.current.chainNum, header.Height, header.Difficulty)
 	miner.commitTask(miner.current)
 
 	return nil
@@ -392,7 +392,7 @@ func (miner *Miner) NewMiningLoop() error {
 		miner.log.Info("Failed to get the mining key")
 		return err
 	}
-	fmt.Printf("after getting Mining key: %s", miningKeyHash.ToHex())
+	miner.log.Info("Got Mining key: %s", miningKeyHash.ToHex())
 	miningKeyHashInt.SetBytes(miningKeyHash.Bytes())
 	chainNum := miner.getChainNumByMiningKey(miningKeyHashInt)
 	// try to prepare the new block on a certain chain

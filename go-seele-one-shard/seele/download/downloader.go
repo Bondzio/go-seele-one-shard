@@ -34,7 +34,7 @@ const (
 	BlocksMsg uint16 = 12
 
 	// number of chains
-	numOfChains = 2
+	numOfChains = 4
 )
 
 // CodeToStr message code -> message string

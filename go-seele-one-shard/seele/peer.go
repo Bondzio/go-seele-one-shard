@@ -112,7 +112,7 @@ func (p *peer) Info() *PeerInfo {
 }
 
 func (p *peer) sendTransactionHash(txHashMsg *transactionHashMsg) error {
-	txHash := txHashMsg.txHash
+	txHash := txHashMsg.TxHash
 	if p.knownTxs.Contains(txHash) {
 		return nil
 	}
@@ -160,21 +160,21 @@ func (p *peer) sendTransactionRequest(txHashMsg *transactionHashMsg) error {
 
 func (p *peer) sendTransaction(tx *types.Transaction, chainNum uint64) error {
 	var txMsg transactionMsg
-	txMsg.tx = tx
-	txMsg.chainNum = chainNum 
+	txMsg.Tx = tx
+	txMsg.ChainNum = chainNum 
 	return p.sendTransactions([]*transactionMsg{&txMsg})
 }
 
 func (p *peer) SendBlockHash(blkHashMsg *blockHashMsg) error {
-	if p.knownBlocks.Contains(blkHashMsg.blockHash) {
+	if p.knownBlocks.Contains(blkHashMsg.BlockHash) {
 		return nil
 	}
 	buff := common.SerializePanic(blkHashMsg)
 
-	p.log.Debug("peer send [blockHashMsgCode] with size %d byte, chainNum: %d", len(buff), blkHashMsg.chainNum)
+	p.log.Debug("peer send [blockHashMsgCode] with size %d byte, chainNum: %d", len(buff), blkHashMsg.ChainNum)
 	err := p2p.SendMessage(p.rw, blockHashMsgCode, buff)
 	if err == nil {
-		p.knownBlocks.Add(blkHashMsg.blockHash, nil)
+		p.knownBlocks.Add(blkHashMsg.BlockHash, nil)
 	}
 
 	return err
@@ -183,7 +183,7 @@ func (p *peer) SendBlockHash(blkHashMsg *blockHashMsg) error {
 func (p *peer) SendBlockRequest(blkHashMsg *blockHashMsg) error {
 	buff := common.SerializePanic(blkHashMsg)
 
-	p.log.Debug("peer send [blockRequestMsgCode] with size %d byte, chainNum: %d", len(buff), blkHashMsg.chainNum)
+	p.log.Debug("peer send [blockRequestMsgCode] with size %d byte, chainNum: %d", len(buff), blkHashMsg.ChainNum)
 	return p2p.SendMessage(p.rw, blockRequestMsgCode, buff)
 }
 
@@ -201,7 +201,7 @@ func (p *peer) sendTransactions(txMsgs []*transactionMsg) error {
 func (p *peer) SendBlock(blkMsg *blockMsg) error {
 	buff := common.SerializePanic(blkMsg)
 
-	p.log.Debug("peer send [blockMsgCode] with height %d, size %d byte, chainNum: %d", blkMsg.block.Header.Height, len(buff), blkMsg.chainNum)
+	p.log.Debug("peer send [blockMsgCode] with height %d, size %d byte, chainNum: %d", blkMsg.Block.Header.Height, len(buff), blkMsg.ChainNum)
 	return p2p.SendMessage(p.rw, blockMsgCode, buff)
 }
 
@@ -239,12 +239,15 @@ func (p *peer) RequestHeadersByHashOrNumber(magic uint32, origin common.Hash, ch
 		Hash:    origin,
 		Number:  num,
 		Amount:  uint64(amount),
+		ChainNum: chainNum,
 		Reverse: reverse,
-		chainNum: chainNum,
 	}
 
 	buff := common.SerializePanic(query)
-	p.log.Debug("peer send [downloader.GetBlockHeadersMsg] with size %d byte peerid:%s, original chainNum: %d, chainNum:%d, hash: %s", len(buff), p.peerStrID, chainNum, query.chainNum, query.Hash.ToHex())
+	p.log.Debug("peer send [downloader.GetBlockHeadersMsg] with size %d byte peerid:%s, chainNum:%d, hash: %s", len(buff), p.peerStrID, query.ChainNum, query.Hash.ToHex())
+	var query_test blockHeadersQuery
+	_ = common.Deserialize(buff, &query_test)
+	p.log.Debug("test the serializePanic function, chainNum:%d, hash: %s, original num: %d, num: %d", query_test.ChainNum, query_test.Hash.ToHex(), num, query.Number)
 	return p2p.SendMessage(p.rw, downloader.GetBlockHeadersMsg, buff)
 }
 
@@ -268,7 +271,7 @@ func (p *peer) RequestBlocksByHashOrNumber(magic uint32, origin common.Hash, cha
 		Hash:   origin,
 		Number: num,
 		Amount: uint64(amount),
-		chainNum: chainNum,
+		ChainNum: chainNum,
 	}
 	buff := common.SerializePanic(query)
 
