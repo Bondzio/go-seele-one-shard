@@ -16,6 +16,10 @@ import (
 	"github.com/seeleteam/go-seele/common/hexutil"
 )
 
+const (
+	numOfChains = 4
+)
+
 //////////////////////////////////////////////////////////////////////////////
 // Address format:
 // - External account: pubKeyHash[12:32] and set last 4 bits to addressTypeExternal(1)
@@ -227,4 +231,21 @@ func (id *Address) CreateContractAddress(nonce uint64, hashFunc func(interface{}
 	copy(contractAddr[18:], encoded)   // last 2 bytes for shard mod and address type
 
 	return contractAddr
+}
+
+
+// Shard returns the shard number of this address.
+func (id *Address) GetChainNum() uint64 {
+	var sum uint64
+
+	// sum [0:18]
+	for _, b := range id[:18] {
+		sum += uint64(b)
+	}
+
+	// sum [18:20] except address type
+	tail := uint64(binary.BigEndian.Uint16(id[18:]))
+	sum += (tail >> 4)
+
+	return (sum % numOfChains) + 1
 }

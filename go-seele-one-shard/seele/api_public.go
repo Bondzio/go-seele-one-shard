@@ -143,38 +143,45 @@ package seele
  	}, nil
  }
 
-// // AddTx add a tx to miner
-// func (api *PublicSeeleAPI) AddTx(tx types.Transaction) (bool, error) {
-// 	shard := tx.Data.From.Shard()
-// 	var err error
-// 	if shard != common.LocalShardNumber {
-// 		if err = tx.ValidateWithoutState(true, false); err == nil {
-// 			api.s.seeleProtocol.SendDifferentShardTx(&tx, shard)
-// 		}
-// 	} else {
-// 		err = api.s.txPool.AddTransaction(&tx)
-// 	}
+// AddTx add a tx to miner
+ func (api *PublicSeeleAPI) AddTx(tx types.Transaction) (bool, error) {
+	shard := tx.Data.From.Shard()
+	 
+	// assign chain number to the transaction
+	txMsg := &transactionMsg {
+		Tx: &tx,
+		ChainNum: tx.Data.From.GetChainNum(),
+	}
+	
+ 	var err error
+ 	if shard != common.LocalShardNumber {
+ 		if err = tx.ValidateWithoutState(true, false); err == nil {
+ 			api.s.seeleProtocol.SendDifferentShardTx(txMsg, shard)
+ 		}
+ 	} else {
+ 		err = api.s.txPools[txMsg.ChainNum].AddTransaction(&tx)
+ 	}
 
-// 	if err != nil {
-// 		return false, err
-// 	}
+ 	if err != nil {
+ 		return false, err
+ 	}
 
-// 	return true, nil
-// }
+ 	return true, nil
+ }
 
-// // GetAccountNonce get account next used nonce
-// func (api *PublicSeeleAPI) GetAccountNonce(account common.Address) (uint64, error) {
-// 	if account.Equal(common.EmptyAddress) {
-// 		account = api.s.Miner().GetCoinbase()
-// 	}
+ // GetAccountNonce get account next used nonce
+ func (api *PublicSeeleAPI) GetAccountNonce(account common.Address) (uint64, error) {
+ 	if account.Equal(common.EmptyAddress) {
+ 		account = api.s.Miner().GetCoinbase()
+ 	}
 
-// 	state, err := api.s.chain.GetCurrentState()
-// 	if err != nil {
-// 		return 0, err
-// 	}
+ 	state, err := api.s.GetCurrentState()
+ 	if err != nil {
+ 		return 0, err
+ 	}
 
-// 	return state.GetNonce(account), nil
-// }
+ 	return state.GetNonce(account), nil
+ }
 
 // GetBlockHeight get the block height of the chain head
 // func (api *PublicSeeleAPI) GetBlockHeight() (uint64, error) {
