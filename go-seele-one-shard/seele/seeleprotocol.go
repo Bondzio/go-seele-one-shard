@@ -72,8 +72,8 @@ type SeeleProtocol struct {
 
 	networkID  uint64
 	downloader *downloader.Downloader
-	txPool     [numOfChains]*core.TransactionPool
-	chain      [numOfChains]*core.Blockchain
+	txPool     [NumOfChains]*core.TransactionPool
+	chain      [NumOfChains]*core.Blockchain
 
 	wg     sync.WaitGroup
 	quitCh chan struct{}
@@ -229,7 +229,7 @@ func (sp *SeeleProtocol) syncTransactions(p *peer) {
 
 	var pending []*transactionMsg
 	var txMsg 	*transactionMsg
- 	for i := 0; i < numOfChains; i++ {
+ 	for i := 0; i < NumOfChains; i++ {
 		pendingInOnePool := sp.txPool[i].GetTransactions(false, true)
 		for _, tx := range pendingInOnePool {
 			txMsg.Tx = tx
@@ -352,11 +352,11 @@ func (p *SeeleProtocol) handleAddPeer(p2pPeer *p2p.Peer, rw p2p.MsgReadWriter) {
 
 	newPeer := newPeer(SeeleVersion, p2pPeer, rw, p.log)
 
-	block := make([]*types.Block,numOfChains)
- 	head := make([]common.Hash,numOfChains)
-	localTD := make([]*big.Int,numOfChains)
+	block := make([]*types.Block,NumOfChains)
+ 	head := make([]common.Hash,NumOfChains)
+	localTD := make([]*big.Int,NumOfChains)
 	var err error 
- 	for i := 0; i < numOfChains; i++ {
+ 	for i := 0; i < NumOfChains; i++ {
  		block[i] = p.chain[i].CurrentBlock()
  		head[i] = block[i].HeaderHash
  		localTD[i], err = p.chain[i].GetStore().GetBlockTotalDifficulty(head[i])

@@ -14,7 +14,7 @@ import (
 	"github.com/seeleteam/go-seele/core/types"
 	"github.com/seeleteam/go-seele/crypto"
 	"github.com/seeleteam/go-seele/rpc2"
-	//"github.com/seeleteam/go-seele/seele"
+	"github.com/seeleteam/go-seele/seele"
 )
 
 // GetAccountNonce get account nonce by account
@@ -24,12 +24,12 @@ func GetAccountNonce(client *rpc.Client, account common.Address) (uint64, error)
 	return nonce, err
 }
 
-// func GetInfo(client *rpc.Client) (seele.MinerInfo, error) {
-// 	var info seele.MinerInfo
-// 	err := client.Call(&info, "seele_getInfo")
+func GetInfo(client *rpc.Client) (seele.MinerInfo, error) {
+ 	var info seele.MinerInfo
+ 	err := client.Call(&info, "seele_getInfo")
 
-// 	return info, err
-// }
+ 	return info, err
+}
 
 // GenerateTx generate a transaction based on the address type of to
 func GenerateTx(from *ecdsa.PrivateKey, to common.Address, amount *big.Int, fee *big.Int, nonce uint64, payload []byte) (*types.Transaction, error) {

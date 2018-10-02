@@ -39,9 +39,9 @@ func newPeerSet() *peerSet {
 
 func (p *peerSet) bestPeer(shard uint) []*bestPeerForEachChain {
 	
-	bestPeers := make([]*bestPeerForEachChain, numOfChains)
+	bestPeers := make([]*bestPeerForEachChain, NumOfChains)
 	p.ForEach(shard, func(p *peer) bool {
- 		for i := 0; i < numOfChains; i++ {
+ 		for i := 0; i < NumOfChains; i++ {
 			_, td := p.HeadByChain(uint64(i))   
 			if bestPeers[i] == nil || td.Cmp(bestPeers[i].bestTd) > 0 {
 				 bestPeers[i] = &bestPeerForEachChain{

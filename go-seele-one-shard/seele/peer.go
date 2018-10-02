@@ -81,8 +81,8 @@ func newPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, log *log.SeeleLog)
 		panic(err)
 	}
 
-	tds := make([]*big.Int, numOfChains)
- 	for i := 0; i < numOfChains; i++ {
+	tds := make([]*big.Int, NumOfChains)
+ 	for i := 0; i < NumOfChains; i++ {
  		tds[i] = big.NewInt(0)
 	}
 	 

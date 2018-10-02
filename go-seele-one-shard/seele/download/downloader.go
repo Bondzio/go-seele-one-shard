@@ -34,7 +34,7 @@ const (
 	BlocksMsg uint16 = 12
 
 	// number of chains
-	numOfChains = 4
+	NumOfChains = 3
 )
 
 // CodeToStr message code -> message string
@@ -93,9 +93,9 @@ type Downloader struct {
 	peers      map[string]*peerConn // peers map. peerID=>peer
 
 	syncStatus int
-	tm         [numOfChains]*taskMgr
+	tm         [NumOfChains]*taskMgr
 
-	chain     [numOfChains]*core.Blockchain
+	chain     [NumOfChains]*core.Blockchain
 	sessionWG sync.WaitGroup
 	log       *log.SeeleLog
 	lock      sync.RWMutex
@@ -116,7 +116,7 @@ type BlocksMsgBody struct {
 }
 
 // NewDownloader create Downloader
-func NewDownloader(chain [numOfChains]*core.Blockchain) *Downloader {
+func NewDownloader(chain [NumOfChains]*core.Blockchain) *Downloader {
 	d := &Downloader{
 		cancelCh:   make(chan struct{}),
 		peers:      make(map[string]*peerConn),
@@ -367,7 +367,7 @@ func (d *Downloader) RegisterPeer(peerID string, peer Peer) {
 	d.peers[peerID] = newConn
 
 	if d.syncStatus == statusFetching {
-		for i := 0; i < numOfChains; i++ {
+		for i := 0; i < NumOfChains; i++ {
 			d.sessionWG.Add(1)
 			go d.peerDownload(newConn, d.tm[i])
 		}

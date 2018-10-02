@@ -35,15 +35,15 @@ type SeeleService struct {
 	seeleProtocol *SeeleProtocol
 	log           *log.SeeleLog
 
-	txPools         [numOfChains]*core.TransactionPool
-	chains          [numOfChains]*core.Blockchain
-	chainDBs        [numOfChains]database.Database // database used to store blocks.
+	txPools         [NumOfChains]*core.TransactionPool
+	chains          [NumOfChains]*core.Blockchain
+	chainDBs        [NumOfChains]database.Database // database used to store blocks.
 	accountStateDB database.Database // database used to store account state info.
 	accountStateDBRootHash common.Hash
 	miner          *miner.Miner
 
-	lastHeaders              [numOfChains]common.Hash
-	chainHeaderChangeChannels [numOfChains]chan common.Hash
+	lastHeaders              [NumOfChains]common.Hash
+	chainHeaderChangeChannels [NumOfChains]chan common.Hash
 }
 
 // ServiceContext is a collection of service configuration inherited from node
@@ -51,8 +51,8 @@ type ServiceContext struct {
 	DataDir string
 }
 
-func (s *SeeleService) TxPool() [numOfChains]*core.TransactionPool { return s.txPools }
-func (s *SeeleService) BlockChain() [numOfChains]*core.Blockchain  { return s.chains }
+func (s *SeeleService) TxPool() [NumOfChains]*core.TransactionPool { return s.txPools }
+func (s *SeeleService) BlockChain() [NumOfChains]*core.Blockchain  { return s.chains }
 func (s *SeeleService) NetVersion() uint64            { return s.networkID }
 func (s *SeeleService) Miner() *miner.Miner           { return s.miner }
 func (s *SeeleService) Downloader() *downloader.Downloader {
@@ -86,7 +86,7 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 	serviceContext := ctx.Value("ServiceContext").(ServiceContext)
 
 	// Initialize blockchain DB.
-	for i := 0; i < numOfChains; i++ {
+	for i := 0; i < NumOfChains; i++ {
 		chainNumString := strconv.Itoa(i)
 		chainDBPath := filepath.Join(serviceContext.DataDir, BlockChainDir, chainNumString)
 		log.Info("NewSeeleService BlockChain datadir is %s", chainDBPath)	
@@ -103,7 +103,7 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 	log.Info("NewSeeleService account state datadir is %s", accountStateDBPath)
 	s.accountStateDB, err = leveldb.NewLevelDB(accountStateDBPath)
 	if err != nil {
-		for i := 0; i < numOfChains; i++ {
+		for i := 0; i < NumOfChains; i++ {
 			s.chainDBs[i].Close()
 		}
 		log.Error("NewSeeleService Create BlockChain err: failed to create account state DB, %s", err)
@@ -129,11 +129,11 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 	}
 
 	// initialize and validate genesis
-	for i := 0; i < numOfChains; i++ {
+	for i := 0; i < NumOfChains; i++ {
 		bcStore := store.NewCachedStore(store.NewBlockchainDatabase(s.chainDBs[i]))
 		err = genesis.InitializeAndValidate(bcStore)
 		if err != nil {
-			for i := 0; i < numOfChains; i++ {
+			for i := 0; i < NumOfChains; i++ {
 				s.chainDBs[i].Close()
 			}
 			s.accountStateDB.Close()
@@ -145,7 +145,7 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 		recoveryPointFile := filepath.Join(serviceContext.DataDir, chainNumString, BlockChainRecoveryPointFile)
 		s.chains[i], err = core.NewBlockchain(bcStore, recoveryPointFile, uint64(i), s)
 		if err != nil {
-			for i := 0; i < numOfChains; i++ {
+			for i := 0; i < NumOfChains; i++ {
 				s.chainDBs[i].Close()
 			}
 			s.accountStateDB.Close()
@@ -156,7 +156,7 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 
 	err = s.initPool(conf)
 	if err != nil {
-		for i := 0; i < numOfChains; i++ {
+		for i := 0; i < NumOfChains; i++ {
 			s.chainDBs[i].Close()
 		}
 		s.accountStateDB.Close()
@@ -167,7 +167,7 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 
 	s.seeleProtocol, err = NewSeeleProtocol(s, log)
 	if err != nil {
-		for i := 0; i < numOfChains; i++ {
+		for i := 0; i < NumOfChains; i++ {
 			s.chainDBs[i].Close()
 		}
 		s.accountStateDB.Close()
@@ -182,7 +182,7 @@ func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) 
 
 func (s *SeeleService) initPool(conf *node.Config) error {
 	var err error
-	for i := 0; i < numOfChains; i++ {
+	for i := 0; i < NumOfChains; i++ {
 		s.lastHeaders[i], err = s.chains[i].GetStore().GetHeadBlockHash()
 		if err != nil {
 			return fmt.Errorf("failed to get chain header, %s", err)
@@ -248,7 +248,7 @@ func (s *SeeleService) Stop() error {
 	//TODO
 	// s.txPool.Stop() s.chain.Stop()
 	// retries? leave it to future
-	for i := 0; i < numOfChains; i++ {
+	for i := 0; i < NumOfChains; i++ {
 		s.chainDBs[i].Close()
 	}
 	s.accountStateDB.Close()
