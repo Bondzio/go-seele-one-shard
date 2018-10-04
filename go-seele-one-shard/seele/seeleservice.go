@@ -10,7 +10,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
-
+	"sync"
+	
 	"github.com/seeleteam/go-seele/common"
 	"github.com/seeleteam/go-seele/core"
 	"github.com/seeleteam/go-seele/core/store"
@@ -44,6 +45,8 @@ type SeeleService struct {
 
 	lastHeaders              [NumOfChains]common.Hash
 	chainHeaderChangeChannels [NumOfChains]chan common.Hash
+
+	lock           sync.RWMutex // lock for update accountstateDB
 }
 
 // ServiceContext is a collection of service configuration inherited from node

@@ -185,7 +185,7 @@ func (pool *TransactionPool) AddTransaction(tx *types.Transaction) error {
 	if tx == nil {
 		return nil
 	}
-	// TODO: make sure this state is locked
+	
 	statedb, err := pool.seele.GetCurrentState()
 	if err != nil {
 		return fmt.Errorf("get current state db failed, error %s", err)

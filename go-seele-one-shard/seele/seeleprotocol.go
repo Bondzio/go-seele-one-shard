@@ -712,7 +712,7 @@ handler:
 			}
 
 			p.log.Debug("Received statusChainHeadMsgCode")
-			p.log.Info("Received peer status: ChainNum: %d, peer head: %s", status.ChainNum, status.CurrentBlock.ToHex())
+			p.log.Info("Received peer status, ChainNum: %d, peer head: %s", status.ChainNum, status.CurrentBlock.ToHex())
 			peer.SetHead(status.CurrentBlock, status.TD, status.ChainNum)
 			p.syncCh <- struct{}{}
 

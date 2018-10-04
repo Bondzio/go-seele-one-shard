@@ -263,6 +263,8 @@ func (bc *Blockchain) doWriteBlock(block *types.Block) error {
 
 	bc.lock.Lock()
 	defer bc.lock.Unlock()
+	//bc.seele.lock.Lock()
+	//defer bc.seele.lock.Unlock()
 
 	var preBlock *types.Block
 	if preBlock, err = bc.bcStore.GetBlock(block.Header.PreviousBlockHash); err != nil {
