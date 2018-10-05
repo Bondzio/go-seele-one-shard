@@ -121,6 +121,8 @@ type SeeleBackendForBlockchain interface {
 	AccountStateDB() database.Database
 	UpdateDB(db database.Database) error 
 	UpdateDBRootHash(dbRootHash common.Hash) error
+	Lock() error
+	Unlock() error
 }
 
 // Blockchain represents the blockchain with a genesis block. The Blockchain manages
@@ -261,10 +263,10 @@ func (bc *Blockchain) doWriteBlock(block *types.Block) error {
 		return ErrBlockAlreadyExists
 	}
 
-	bc.lock.Lock()
-	defer bc.lock.Unlock()
-	//bc.seele.lock.Lock()
-	//defer bc.seele.lock.Unlock()
+	//bc.lock.Lock()
+	//defer bc.lock.Unlock()
+	bc.seele.Lock()
+	defer bc.seele.Unlock()
 
 	var preBlock *types.Block
 	if preBlock, err = bc.bcStore.GetBlock(block.Header.PreviousBlockHash); err != nil {

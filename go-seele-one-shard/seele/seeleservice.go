@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
-	
+
 	"github.com/seeleteam/go-seele/common"
 	"github.com/seeleteam/go-seele/core"
 	"github.com/seeleteam/go-seele/core/store"
@@ -77,7 +77,15 @@ func (s *SeeleService) UpdateDBRootHash(dbRootHash common.Hash) error {
 	return nil
 }
 
+func (s *SeeleService) Lock() error {
+	s.lock.Lock()
+	return nil
+}
 
+func (s *SeeleService) Unlock() error {
+	s.lock.Unlock()
+	return nil
+}
 
 // NewSeeleService create SeeleService
 func NewSeeleService(ctx context.Context, conf *node.Config, log *log.SeeleLog) (s *SeeleService, err error) {
