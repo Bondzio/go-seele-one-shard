@@ -170,16 +170,17 @@ func (sp *SeeleProtocol) synchronise(bestPeers []*bestPeerForEachChain) {
 			continue
 		}
 
+		// miner stops only when the miner and the new received block are on the same chain 
 		event.BlockDownloaderEventManager.Fire(event.DownloaderStartEvent)
-		defer func() {
-			if err != nil {
-				sp.log.Info("download end with failed, err %s, chainNum: %d", err, bp.chainNum)
-				event.BlockDownloaderEventManager.Fire(event.DownloaderFailedEvent)
-			} else {
-				sp.log.Debug("download end success, chainNum: %d", bp.chainNum)
-				event.BlockDownloaderEventManager.Fire(event.DownloaderDoneEvent)
-			}
-		}()
+		// defer func() {
+		//	if err != nil {
+		//		sp.log.Info("download end with failed, err %s, chainNum: %d", err, bp.chainNum)
+		//		event.BlockDownloaderEventManager.Fire(event.DownloaderFailedEvent)
+		//	} else {
+		//		sp.log.Debug("download end success, chainNum: %d", bp.chainNum)
+		//		event.BlockDownloaderEventManager.Fire(event.DownloaderDoneEvent)
+		//	}
+		// }()
 
 		err = sp.downloader.Synchronise(bp.bestPeer.peerStrID, bp.chainNum, pHead, pTd, localTD)
 		if err != nil {
@@ -188,12 +189,19 @@ func (sp *SeeleProtocol) synchronise(bestPeers []*bestPeerForEachChain) {
 			} else {
 				sp.log.Error("synchronise err. %s", err)
 			}
-			continue
+	
+			sp.log.Info("download end with failed, err %s, chainNum: %d", err, bp.chainNum)
+			event.BlockDownloaderEventManager.Fire(event.DownloaderFailedEvent)	
+
+			return
 		}
 
 		//broadcast chain head
 		sp.broadcastChainHead(bp.chainNum)
 	}
+
+	sp.log.Debug("download end success")
+	event.BlockDownloaderEventManager.Fire(event.DownloaderDoneEvent)
 
 	return
 }
