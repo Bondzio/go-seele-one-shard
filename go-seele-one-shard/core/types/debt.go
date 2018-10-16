@@ -5,120 +5,124 @@
 
 package types
 
-// import (
-// 	"math/big"
+ import (
+ 	"math/big"
 
-// 	"github.com/seeleteam/go-seele/common"
-// 	"github.com/seeleteam/go-seele/crypto"
-// 	"github.com/seeleteam/go-seele/trie"
-// )
+ 	"github.com/seeleteam/go-seele/common"
+ 	"github.com/seeleteam/go-seele/crypto"
+ 	"github.com/seeleteam/go-seele/trie"
+ )
 
-// // DebtSize debt serialized size
-// const DebtSize = 96
+ // DebtSize debt serialized size
+ const DebtSize = 96
 
-// type DebtData struct {
-// 	TxHash  common.Hash    // the hash of the executed transaction
-// 	Shard   uint           // target shard
-// 	Account common.Address // debt for account
-// 	Amount  *big.Int       // debt amount
-// 	Fee     *big.Int       // debt fee
-// 	Code    common.Bytes   // debt contract code
-// }
+ type DebtData struct {
+ 	TxHash  common.Hash    // the hash of the executed transaction
+ 	Shard   uint           // target shard
+ 	Account common.Address // debt for account
+ 	Amount  *big.Int       // debt amount
+ 	Fee     *big.Int       // debt fee
+	Code    common.Bytes   // debt contract code
+	ChainNum uint64
+ }
 
-// type Debt struct {
-// 	Hash common.Hash // Debt hash of DebtData
-// 	Data DebtData
-// }
+ type Debt struct {
+ 	Hash common.Hash // Debt hash of DebtData
+ 	Data DebtData
+ }
 
-// type DebtIndex indexInBlock
+type DebtIndex indexInBlock
 
-// // DebtMerkleRootHash calculates and returns the merkle root hash of the specified debts.
-// // If the given receipts are empty, return empty hash.
-// func DebtMerkleRootHash(debts []*Debt) common.Hash {
-// 	if len(debts) == 0 {
-// 		return common.EmptyHash
-// 	}
+// DebtMerkleRootHash calculates and returns the merkle root hash of the specified debts.
+// If the given receipts are empty, return empty hash.
+func DebtMerkleRootHash(debts []*Debt) common.Hash {
+	if len(debts) == 0 {
+		return common.EmptyHash
+	}
 
-// 	debtTrie, err := trie.NewTrie(common.EmptyHash, make([]byte, 0), nil)
-// 	if err != nil {
-// 		panic(err)
-// 	}
+	debtTrie, err := trie.NewTrie(common.EmptyHash, make([]byte, 0), nil)
+	if err != nil {
+		panic(err)
+	}
 
-// 	for _, d := range debts {
-// 		if d == nil {
-// 			continue
-// 		}
+	for _, d := range debts {
+		if d == nil {
+			continue
+		}
 
-// 		buff := common.SerializePanic(d)
-// 		debtTrie.Put(d.Hash.Bytes(), buff)
-// 	}
+		buff := common.SerializePanic(d)
+		debtTrie.Put(d.Hash.Bytes(), buff)
+	}
 
-// 	return debtTrie.Hash()
-// }
+	return debtTrie.Hash()
+}
 
-// func (d *Debt) Size() int {
-// 	return DebtSize
-// }
+func (d *Debt) Size() int {
+	return DebtSize
+}
 
-// func GetDebtShareFee(fee *big.Int) *big.Int {
-// 	unit := big.NewInt(0).Div(fee, big.NewInt(10))
+func GetDebtShareFee(fee *big.Int) *big.Int {
+	unit := big.NewInt(0).Div(fee, big.NewInt(10))
 
-// 	share := big.NewInt(0).Mul(unit, big.NewInt(9))
-// 	return share
-// }
+	share := big.NewInt(0).Mul(unit, big.NewInt(9))
+	return share
+}
 
-// func NewDebt(tx *Transaction) *Debt {
-// 	if tx == nil || tx.Data.To.IsEmpty() || tx.Data.To.IsReserved() {
-// 		return nil
-// 	}
+func NewDebt(tx *Transaction) *Debt {
+	if tx == nil || tx.Data.To.IsEmpty() || tx.Data.To.IsReserved() {
+		return nil
+	}
 
-// 	shard := tx.Data.To.Shard()
-// 	if shard == common.LocalShardNumber {
-// 		return nil
-// 	}
+	fromChainNum := tx.Data.From.GetChainNum()
+	toChainNum := tx.Data.To.GetChainNum()
+	shard := tx.Data.To.Shard()
+	if shard == common.LocalShardNumber && fromChainNum == toChainNum {
+		return nil
+	}
 
-// 	data := DebtData{
-// 		TxHash:  tx.Hash,
-// 		Shard:   shard,
-// 		Account: tx.Data.To,
-// 		Amount:  big.NewInt(0).Set(tx.Data.Amount),
-// 		Fee:     GetDebtShareFee(tx.Data.Fee),
-// 	}
+	data := DebtData{
+		TxHash:  tx.Hash,
+		Shard:   shard,
+		Account: tx.Data.To,
+		Amount:  big.NewInt(0).Set(tx.Data.Amount),
+		Fee:     GetDebtShareFee(tx.Data.Fee),
+		ChainNum: toChainNum,
+	}
 
-// 	if tx.Data.To.IsEVMContract() {
-// 		data.Code = tx.Data.Payload
-// 	}
+	if tx.Data.To.IsEVMContract() {
+		data.Code = tx.Data.Payload
+	}
 
-// 	debt := &Debt{
-// 		Data: data,
-// 		Hash: crypto.MustHash(data),
-// 	}
+	debt := &Debt{
+		Data: data,
+		Hash: crypto.MustHash(data),
+	}
 
-// 	return debt
-// }
+	return debt
+}
 
-// func NewDebts(txs []*Transaction) []*Debt {
-// 	debts := make([]*Debt, 0)
+func NewDebts(txs []*Transaction) []*Debt {
+	debts := make([]*Debt, 0)
 
-// 	for _, tx := range txs {
-// 		d := NewDebt(tx)
-// 		if d != nil {
-// 			debts = append(debts, d)
-// 		}
-// 	}
+	for _, tx := range txs {
+		d := NewDebt(tx)
+		if d != nil {
+			debts = append(debts, d)
+		}
+	}
 
-// 	return debts
-// }
+	return debts
+}
 
-// func NewDebtMap(txs []*Transaction) [][]*Debt {
-// 	debts := make([][]*Debt, common.ShardCount+1)
+func NewDebtMap(txs []*Transaction) [][]*Debt {
+	debts := make([][]*Debt, common.ShardCount+1)
 
-// 	for _, tx := range txs {
-// 		d := NewDebt(tx)
-// 		if d != nil {
-// 			debts[d.Data.Shard] = append(debts[d.Data.Shard], d)
-// 		}
-// 	}
+	for _, tx := range txs {
+		d := NewDebt(tx)
+		if d != nil {
+			debts[d.Data.Shard] = append(debts[d.Data.Shard], d)
+		}
+	}
 
-// 	return debts
-// }
+	return debts
+}

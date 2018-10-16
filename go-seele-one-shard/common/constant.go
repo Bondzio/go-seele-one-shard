@@ -25,7 +25,7 @@ const (
 	// CPUMetricsRefreshTime is the time of metrics monitor cpu
 	CPUMetricsRefreshTime = time.Second
 
-	ConfirmedBlockNumber = 6
+	ConfirmedBlockNumber = 3
 )
 
 var (

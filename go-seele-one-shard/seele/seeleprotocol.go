@@ -73,6 +73,7 @@ type SeeleProtocol struct {
 	networkID  uint64
 	downloader *downloader.Downloader
 	txPool     [NumOfChains]*core.TransactionPool
+	debtPool   [NumOfChains]*core.DebtPool
 	chain      [NumOfChains]*core.Blockchain
 
 	wg     sync.WaitGroup
@@ -94,6 +95,7 @@ func NewSeeleProtocol(seele *SeeleService, log *log.SeeleLog) (s *SeeleProtocol,
 		},
 		networkID:  seele.networkID,
 		txPool:     seele.TxPool(),
+		debtPool:   seele.debtPools,
 		chain:      seele.BlockChain(),
 		downloader: downloader.NewDownloader(seele.BlockChain()),
 		log:        log,
@@ -307,28 +309,28 @@ func (p *SeeleProtocol) handleNewTx(e event.Event) {
 	})
 }
 
-// func (p *SeeleProtocol) propagateDebt(debts []*types.Debt) {
-// 	debtsMap := make([][]*types.Debt, common.ShardCount+1)
+func (p *SeeleProtocol) propagateDebt(debts []*types.Debt) {
+	debtsMap := make([][]*types.Debt, common.ShardCount+1)
 
-// 	for _, d := range debts {
-// 		debtsMap[d.Data.Shard] = append(debtsMap[d.Data.Shard], d)
-// 	}
+	for _, d := range debts {
+		debtsMap[d.Data.Shard] = append(debtsMap[d.Data.Shard], d)
+	}
 
-// 	p.propagateDebtMap(debtsMap)
-// }
+	p.propagateDebtMap(debtsMap)
+}
 
-// func (p *SeeleProtocol) propagateDebtMap(debtsMap [][]*types.Debt) {
-// 	p.peerSet.ForEachAll(func(peer *peer) bool {
-// 		if len(debtsMap[peer.Node.Shard]) > 0 {
-// 			err := peer.sendDebts(debtsMap[peer.Node.Shard])
-// 			if err != nil {
-// 				p.log.Warn("failed to send debts to %s %s", peer.Node, err)
-// 			}
-// 		}
+func (p *SeeleProtocol) propagateDebtMap(debtsMap [][]*types.Debt) {
+	p.peerSet.ForEachAll(func(peer *peer) bool {
+		if len(debtsMap[peer.Node.Shard]) > 0 {
+			err := peer.sendDebts(debtsMap[peer.Node.Shard])
+			if err != nil {
+				p.log.Warn("failed to send debts to %s %s", peer.Node, err)
+			}
+		}
 
-// 		return true
-// 	})
-// }
+		return true
+	})
+}
 
 func (p *SeeleProtocol) handleNewMinedBlock(e event.Event) {
 	block := e.(event.HandleNewMinedBlockMsg).Block
@@ -345,6 +347,22 @@ func (p *SeeleProtocol) handleNewMinedBlock(e event.Event) {
 		}
 		return true
 	})
+
+	// propagate confirmed block
+	if block.Header.Height > common.ConfirmedBlockNumber {
+		confirmedHeight := block.Header.Height - common.ConfirmedBlockNumber
+		confirmedBlock, err := p.chain[chainNum].GetStore().GetBlockByHeight(confirmedHeight)
+		if err != nil {
+			p.log.Warn("failed to load confirmed block height %d, err %s", confirmedHeight, err)
+		}
+
+		debts := types.NewDebtMap(confirmedBlock.Transactions)
+		for _, d := range debts[common.LocalShardNumber] {
+			debtChainNum := d.Data.ChainNum
+			p.debtPool[debtChainNum].Add(d)
+		}
+		p.propagateDebtMap(debts)
+	}
 
 	p.log.Debug("handleNewMinedBlock broadcast chainhead changed. chainNum: %d, new block: %d %s <- %s ",
 		chainNum, block.Header.Height, block.HeaderHash.ToHex(), block.Header.PreviousBlockHash.ToHex())
@@ -592,6 +610,23 @@ handler:
 				// @todo need to make sure WriteBlock handle block fork
 				p.chain[chainNum].WriteBlock(block)
 			}
+
+		case debtMsgCode:
+			var debts []*types.Debt
+			err := common.Deserialize(msg.Payload, &debts)
+			if err != nil {
+				p.log.Warn("failed to deserialize debts msg %s", err)
+				continue
+			}
+
+			p.log.Debug("got %d debts message [%s]", len(debts), codeToStr(msg.Code))
+			for _, d := range debts {
+				peer.knownDebts.Add(d.Hash, nil)
+				chainNum := d.Data.ChainNum
+				p.debtPool[chainNum].Add(d)
+			}
+			
+			go p.propagateDebt(debts)
 
 		case downloader.GetBlockHeadersMsg:
 			var query blockHeadersQuery

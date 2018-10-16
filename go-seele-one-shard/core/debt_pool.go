@@ -5,192 +5,206 @@
 
  package core
 
-// import (
-// 	"bytes"
-// 	"sync"
+ import (
+ 	"bytes"
+ 	"sync"
 
-// 	"github.com/seeleteam/go-seele/common"
-// 	"github.com/seeleteam/go-seele/core/types"
-// 	"github.com/seeleteam/go-seele/log"
-// )
+ 	"github.com/seeleteam/go-seele/common"
+	"github.com/seeleteam/go-seele/core/types"
+	"github.com/seeleteam/go-seele/core/state"
+ 	"github.com/seeleteam/go-seele/log"
+ )
 
-// var DebtDataFlag = []byte{0x01}
+ var DebtDataFlag = []byte{0x01}
 
-// // DebtPool debt pool
-// type DebtPool struct {
-// 	hashMap map[common.Hash]*types.Debt
-// 	mutex   sync.RWMutex
+ // DebtPool debt pool
+ type DebtPool struct {
+ 	hashMap map[common.Hash]*types.Debt
+ 	mutex   sync.RWMutex
 
-// 	chain blockchain
-// 	log   *log.SeeleLog
-// }
+ 	chain blockchain
+	log   *log.SeeleLog
+	
+	seele SeeleBackendForDebtPool
 
-// func NewDebtPool(chain blockchain) *DebtPool {
-// 	return &DebtPool{
-// 		hashMap: make(map[common.Hash]*types.Debt, 0),
-// 		mutex:   sync.RWMutex{},
-// 		chain:   chain,
-// 		log:     log.GetLogger("debtpool"),
-// 	}
-// }
+ }
 
-// func (dp *DebtPool) HandleChainHeaderChanged(newHeader, lastHeader common.Hash) {
-// 	reinject := dp.getReinjectDebts(newHeader, lastHeader)
-// 	dp.Add(reinject)
+ type SeeleBackendForDebtPool interface {
+	GetCurrentState() (*state.Statedb, error)
+ }
 
-// 	dp.removeDebts()
-// }
+ func NewDebtPool(chain blockchain, seele SeeleBackendForDebtPool) *DebtPool {
+ 	return &DebtPool{
+ 		hashMap: make(map[common.Hash]*types.Debt, 0),
+ 		mutex:   sync.RWMutex{},
+ 		chain:   chain,
+		log:     log.GetLogger("debtpool"),
+		seele:   seele, 
+ 	}
+ }
 
-// func (dp *DebtPool) getReinjectDebts(newHeader, lastHeader common.Hash) []*types.Debt {
-// 	chainStore := dp.chain.GetStore()
-// 	log := dp.log
+ func (dp *DebtPool) HandleChainHeaderChanged(newHeader, lastHeader common.Hash) {
+	reinject := dp.getReinjectDebts(newHeader, lastHeader)
+	
+	if len(reinject) > 0 {
+		dp.log.Info("reinject %d debts", len(reinject))
+	}
+	for _, d := range(reinject) {
+		dp.Add(d)
+	} 
 
-// 	newBlock, err := chainStore.GetBlock(newHeader)
-// 	if err != nil {
-// 		log.Error("got block failed, %s", err)
-// 		return nil
-// 	}
+ 	dp.removeDebts()
+ }
 
-// 	if newBlock.Header.PreviousBlockHash != lastHeader {
-// 		lastBlock, err := chainStore.GetBlock(lastHeader)
-// 		if err != nil {
-// 			log.Error("got block failed, %s", err)
-// 			return nil
-// 		}
+ func (dp *DebtPool) getReinjectDebts(newHeader, lastHeader common.Hash) []*types.Debt {
+ 	chainStore := dp.chain.GetStore()
+ 	log := dp.log
 
-// 		log.Debug("handle chain header forked, last height %d, new height %d", lastBlock.Header.Height, newBlock.Header.Height)
-// 		// add committed debts back in current branch.
-// 		toDeleted := make(map[common.Hash]*types.Debt)
-// 		toAdded := make(map[common.Hash]*types.Debt)
-// 		for newBlock.Header.Height > lastBlock.Header.Height {
-// 			for _, d := range newBlock.Debts {
-// 				toDeleted[d.Hash] = d
-// 			}
+ 	newBlock, err := chainStore.GetBlock(newHeader)
+ 	if err != nil {
+ 		log.Error("got block failed, %s", err)
+ 		return nil
+ 	}
 
-// 			if newBlock, err = chainStore.GetBlock(newBlock.Header.PreviousBlockHash); err != nil {
-// 				log.Error("got block failed, %s", err)
-// 				return nil
-// 			}
-// 		}
+ 	if newBlock.Header.PreviousBlockHash != lastHeader {
+ 		lastBlock, err := chainStore.GetBlock(lastHeader)
+ 		if err != nil {
+ 			log.Error("got block failed, %s", err)
+ 			return nil
+ 		}
 
-// 		for lastBlock.Header.Height > newBlock.Header.Height {
-// 			for _, d := range lastBlock.Debts {
-// 				toAdded[d.Hash] = d
-// 			}
+ 		log.Debug("handle chain header forked, last height %d, new height %d", lastBlock.Header.Height, newBlock.Header.Height)
+ 		// add committed debts back in current branch.
+ 		toDeleted := make(map[common.Hash]*types.Debt)
+ 		toAdded := make(map[common.Hash]*types.Debt)
+ 		for newBlock.Header.Height > lastBlock.Header.Height {
+ 			for _, d := range newBlock.Debts {
+ 				toDeleted[d.Hash] = d
+ 			}
 
-// 			if lastBlock, err = chainStore.GetBlock(lastBlock.Header.PreviousBlockHash); err != nil {
-// 				log.Error("got block failed, %s", err)
-// 				return nil
-// 			}
-// 		}
+ 			if newBlock, err = chainStore.GetBlock(newBlock.Header.PreviousBlockHash); err != nil {
+ 				log.Error("got block failed, %s", err)
+ 				return nil
+ 			}
+ 		}
 
-// 		for lastBlock.HeaderHash != newBlock.HeaderHash {
-// 			for _, d := range lastBlock.Debts {
-// 				toAdded[d.Hash] = d
-// 			}
+ 		for lastBlock.Header.Height > newBlock.Header.Height {
+ 			for _, d := range lastBlock.Debts {
+ 				toAdded[d.Hash] = d
+ 			}
 
-// 			for _, d := range newBlock.Debts {
-// 				toDeleted[d.Hash] = d
-// 			}
+ 			if lastBlock, err = chainStore.GetBlock(lastBlock.Header.PreviousBlockHash); err != nil {
+ 				log.Error("got block failed, %s", err)
+ 				return nil
+ 			}
+ 		}
 
-// 			if lastBlock, err = chainStore.GetBlock(lastBlock.Header.PreviousBlockHash); err != nil {
-// 				log.Error("got block failed, %s", err)
-// 				return nil
-// 			}
+ 		for lastBlock.HeaderHash != newBlock.HeaderHash {
+ 			for _, d := range lastBlock.Debts {
+ 				toAdded[d.Hash] = d
+ 			}
 
-// 			if newBlock, err = chainStore.GetBlock(newBlock.Header.PreviousBlockHash); err != nil {
-// 				log.Error("got block failed, %s", err)
-// 				return nil
-// 			}
-// 		}
+ 			for _, d := range newBlock.Debts {
+ 				toDeleted[d.Hash] = d
+ 			}
 
-// 		reinject := make([]*types.Debt, 0)
-// 		for key, d := range toAdded {
-// 			if _, ok := toDeleted[key]; !ok {
-// 				reinject = append(reinject, d)
-// 			}
-// 		}
+ 			if lastBlock, err = chainStore.GetBlock(lastBlock.Header.PreviousBlockHash); err != nil {
+ 				log.Error("got block failed, %s", err)
+ 				return nil
+ 			}
 
-// 		log.Debug("to added tx length %d, to deleted tx length %d, to reinject tx length %d",
-// 			len(toAdded), len(toDeleted), len(reinject))
-// 		return reinject
-// 	}
+ 			if newBlock, err = chainStore.GetBlock(newBlock.Header.PreviousBlockHash); err != nil {
+ 				log.Error("got block failed, %s", err)
+ 				return nil
+ 			}
+ 		}
 
-// 	return nil
-// }
+ 		reinject := make([]*types.Debt, 0)
+ 		for key, d := range toAdded {
+ 			if _, ok := toDeleted[key]; !ok {
+ 				reinject = append(reinject, d)
+ 			}
+ 		}
 
-// func (dp *DebtPool) removeDebts() {
-// 	dp.mutex.Lock()
-// 	defer dp.mutex.Unlock()
+ 		log.Debug("to added debt length %d, to deleted debt length %d, to reinject debt length %d",
+ 			len(toAdded), len(toDeleted), len(reinject))
+ 		return reinject
+ 	}
 
-// 	state, err := dp.chain.GetCurrentState()
-// 	if err != nil {
-// 		dp.log.Warn("failed to get current state, err: %s", err)
-// 		return
-// 	}
+ 	return nil
+ }
 
-// 	for _, d := range dp.hashMap {
-// 		if !state.Exist(d.Data.Account) {
-// 			continue
-// 		}
+ func (dp *DebtPool) removeDebts() {
+ 	dp.mutex.Lock()
+ 	defer dp.mutex.Unlock()
 
-// 		data := state.GetData(d.Data.Account, d.Hash)
-// 		if bytes.Equal(data, DebtDataFlag) {
-// 			delete(dp.hashMap, d.Hash)
-// 		}
-// 	}
-// }
+ 	state, err := dp.seele.GetCurrentState()
+ 	if err != nil {
+ 		dp.log.Warn("failed to get current state, err: %s", err)
+ 		return
+ 	}
 
-// func (dp *DebtPool) Add(debts []*types.Debt) {
-// 	dp.mutex.Lock()
-// 	defer dp.mutex.Unlock()
+ 	for _, d := range dp.hashMap {
+ 		if !state.Exist(d.Data.Account) {
+ 			continue
+ 		}
 
-// 	for _, debt := range debts {
-// 		if debt.Data.Shard == common.LocalShardNumber {
-// 			dp.hashMap[debt.Hash] = debt
-// 		}
-// 	}
-// }
+ 		data := state.GetData(d.Data.Account, d.Hash)
+ 		if bytes.Equal(data, DebtDataFlag) {
+ 			delete(dp.hashMap, d.Hash)
+ 		}
+ 	}
+ }
 
-// func (dp *DebtPool) Remove(hash common.Hash) {
-// 	dp.mutex.Lock()
-// 	defer dp.mutex.Unlock()
+ func (dp *DebtPool) Add(debt *types.Debt) {
+ 	dp.mutex.Lock()
+ 	defer dp.mutex.Unlock()
 
-// 	delete(dp.hashMap, hash)
-// }
+	if debt.Data.Shard == common.LocalShardNumber {
+		dp.hashMap[debt.Hash] = debt
+	}
+ 	
+ }
 
-// func (dp *DebtPool) Get(size int) ([]*types.Debt, int) {
-// 	dp.mutex.RLock()
-// 	defer dp.mutex.RUnlock()
+ func (dp *DebtPool) Remove(hash common.Hash) {
+ 	dp.mutex.Lock()
+ 	defer dp.mutex.Unlock()
 
-// 	remainSize := size
-// 	results := make([]*types.Debt, 0)
-// 	for _, d := range dp.hashMap {
-// 		tmp := remainSize - d.Size()
-// 		if tmp > 0 {
-// 			remainSize = tmp
-// 			results = append(results, d)
-// 		}
-// 	}
+ 	delete(dp.hashMap, hash)
+ }
 
-// 	return results, remainSize
-// }
+ func (dp *DebtPool) Get(size int) ([]*types.Debt, int) {
+ 	dp.mutex.RLock()
+ 	defer dp.mutex.RUnlock()
 
-// func (dp *DebtPool) GetDebtByHash(debt common.Hash) *types.Debt {
-// 	dp.mutex.RLock()
-// 	defer dp.mutex.RUnlock()
+ 	remainSize := size
+ 	results := make([]*types.Debt, 0)
+ 	for _, d := range dp.hashMap {
+ 		tmp := remainSize - d.Size()
+ 		if tmp > 0 {
+ 			remainSize = tmp
+ 			results = append(results, d)
+ 		}
+ 	}
 
-// 	return dp.hashMap[debt]
-// }
+ 	return results, remainSize
+ }
 
-// func (dp *DebtPool) GetAll() []*types.Debt {
-// 	dp.mutex.RLock()
-// 	defer dp.mutex.RUnlock()
+ func (dp *DebtPool) GetDebtByHash(debt common.Hash) *types.Debt {
+ 	dp.mutex.RLock()
+ 	defer dp.mutex.RUnlock()
 
-// 	results := make([]*types.Debt, 0)
-// 	for _, v := range dp.hashMap {
-// 		results = append(results, v)
-// 	}
+ 	return dp.hashMap[debt]
+ }
 
-// 	return results
-// }
+ func (dp *DebtPool) GetAll() []*types.Debt {
+ 	dp.mutex.RLock()
+ 	defer dp.mutex.RUnlock()
+
+ 	results := make([]*types.Debt, 0)
+ 	for _, v := range dp.hashMap {
+ 		results = append(results, v)
+ 	}
+
+ 	return results
+ }

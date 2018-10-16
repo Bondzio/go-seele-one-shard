@@ -22,6 +22,7 @@ type Task struct {
 	header   *types.BlockHeader
 	txs      []*types.Transaction
 	receipts []*types.Receipt
+	debts	 []*types.Debt
 
 	createdAt time.Time
 	coinbase  common.Address
@@ -32,8 +33,7 @@ type Task struct {
 // applyTransactionsAndDebts TODO need to check more about the transactions, such as gas limit
 func (task *Task) applyTransactionsAndDebts(seele SeeleBackend, statedb *state.Statedb, log *log.SeeleLog) error {
 	// choose transactions from the given txs
-	//size := task.chooseDebts(seele, statedb, log)
-	size := core.BlockByteLimit
+	size := task.chooseDebts(seele, statedb, log)
 
 	// the reward tx will always be at the first of the block's transactions
 	reward, err := task.handleMinerRewardTx(statedb)
@@ -43,8 +43,8 @@ func (task *Task) applyTransactionsAndDebts(seele SeeleBackend, statedb *state.S
 
 	task.chooseTransactions(seele, statedb, log, size)
 
-	log.Info("chainNum:%d, mining block height:%d, reward:%s, transaction number:%d",
-		task.chainNum, task.header.Height, reward, len(task.txs))
+	log.Info("chainNum:%d, mining block height:%d, reward:%s, transaction number:%d, debt number: %d",
+		task.chainNum, task.header.Height, reward, len(task.txs), len(task.debts))
 
 	root, err := statedb.Hash()
 	if err != nil {
@@ -56,29 +56,30 @@ func (task *Task) applyTransactionsAndDebts(seele SeeleBackend, statedb *state.S
 	return nil
 }
 
-// func (task *Task) chooseDebts(seele SeeleBackend, statedb *state.Statedb, log *log.SeeleLog) int {
-// 	size := core.BlockByteLimit
+func (task *Task) chooseDebts(seele SeeleBackend, statedb *state.Statedb, log *log.SeeleLog) int {
+	size := core.BlockByteLimit
 
-// 	var debts []*types.Debt
-// 	for size > 0 {
-// 		debts, size = seele.DebtPool().Get(size)
-// 		if len(debts) == 0 {
-// 			return size
-// 		}
+	var debts []*types.Debt
+	for size > 0 {
+		debtPools := seele.DebtPool()
+		debts, size = debtPools[task.chainNum].Get(size)
+		if len(debts) == 0 {
+			return size
+		}
 
-// 		for _, d := range debts {
-// 			err := core.ApplyDebt(statedb, d, task.coinbase)
-// 			if err != nil {
-// 				continue
-// 			}
+		for _, d := range debts {
+			err := core.ApplyDebt(statedb, d, task.coinbase)
+			if err != nil {
+				continue
+			}
 
-// 			// @TODO add debt reward
-// 			task.debts = append(task.debts, d)
-// 		}
-// 	}
+			// @TODO add debt reward
+			task.debts = append(task.debts, d)
+		}
+	}
 
-// 	return size
-// }
+	return size
+}
 
 // handleMinerRewardTx handles the miner reward transaction.
 func (task *Task) handleMinerRewardTx(statedb *state.Statedb) (*big.Int, error) {
@@ -141,7 +142,7 @@ func (task *Task) chooseTransactions(seele SeeleBackend, statedb *state.Statedb,
 
 // generateBlock builds a block from task
 func (task *Task) generateBlock() *types.Block {
-	return types.NewBlock(task.header, task.txs, task.receipts, task.chainNum)
+	return types.NewBlock(task.header, task.txs, task.receipts, task.debts, task.chainNum)
 }
 
 // Result is the result mined by engine. It contains the raw task and mined block.

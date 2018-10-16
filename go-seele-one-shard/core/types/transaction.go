@@ -126,6 +126,22 @@ func (tx *Transaction) IsCrossShardTx() bool {
 	return false
 }
 
+func (tx *Transaction) IsCrossChainTx() bool {
+	if tx.Data.To.IsEmpty() {
+		return false
+	}
+
+	if tx.Data.To.IsReserved() {
+		return false
+	}
+
+	if tx.Data.From.Shard() == tx.Data.To.Shard() && tx.Data.From.GetChainNum() != tx.Data.To.GetChainNum() {
+		return true
+	}
+
+	return false
+}
+
 // Size return the transaction size
 func (tx *Transaction) Size() int {
 	return TransactionPreSize + len(tx.Data.Payload)

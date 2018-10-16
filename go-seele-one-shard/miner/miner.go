@@ -49,6 +49,7 @@ const (
 type SeeleBackend interface {
 	TxPool() [numOfChains]*core.TransactionPool
 	BlockChain() [numOfChains]*core.Blockchain
+	DebtPool()   [numOfChains]*core.DebtPool
 	AccountStateDB() database.Database
 	GetCurrentState() (*state.Statedb, error)
 }

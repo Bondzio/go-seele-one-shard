@@ -37,6 +37,7 @@ type SeeleService struct {
 	log           *log.SeeleLog
 
 	txPools         [NumOfChains]*core.TransactionPool
+	debtPools       [NumOfChains]*core.DebtPool
 	chains          [NumOfChains]*core.Blockchain
 	chainDBs        [NumOfChains]database.Database // database used to store blocks.
 	accountStateDB database.Database // database used to store account state info.
@@ -55,6 +56,7 @@ type ServiceContext struct {
 }
 
 func (s *SeeleService) TxPool() [NumOfChains]*core.TransactionPool { return s.txPools }
+func (s *SeeleService) DebtPool() [NumOfChains]*core.DebtPool      { return s.debtPools }
 func (s *SeeleService) BlockChain() [NumOfChains]*core.Blockchain  { return s.chains }
 func (s *SeeleService) NetVersion() uint64            { return s.networkID }
 func (s *SeeleService) Miner() *miner.Miner           { return s.miner }
@@ -200,6 +202,7 @@ func (s *SeeleService) initPool(conf *node.Config) error {
 		}
 
 		s.chainHeaderChangeChannels[i] = make(chan common.Hash, chainHeaderChangeBuffSize)
+		s.debtPools[i] = core.NewDebtPool(s.chains[i], s)
 		s.txPools[i] = core.NewTransactionPool(conf.SeeleConfig.TxConf, s.chains[i], uint64(i), s)
 
 		event.ChainHeaderChangedEventMananger.AddAsyncListener(s.chainHeaderChanged)
@@ -232,6 +235,8 @@ func (s *SeeleService) MonitorChainHeaderChange(chainNum uint64) {
 			}
 
 			s.txPools[chainNum].HandleChainHeaderChanged(newHeader, s.lastHeaders[chainNum])
+			s.debtPools[chainNum].HandleChainHeaderChanged(newHeader, s.lastHeaders[chainNum])
+
 			s.lastHeaders[chainNum] = newHeader
 		}
 	}

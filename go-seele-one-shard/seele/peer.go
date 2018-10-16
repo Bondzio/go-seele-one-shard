@@ -129,25 +129,25 @@ func (p *peer) sendTransactionHash(txHashMsg *transactionHashMsg) error {
 	return err
 }
 
-// func (p *peer) sendDebts(debts []*types.Debt) error {
-// 	filterDebts := make([]*types.Debt, 0)
-// 	for _, d := range debts {
-// 		if d != nil && !p.knownDebts.Contains(d.Hash) {
-// 			filterDebts = append(filterDebts, d)
-// 		}
-// 	}
+func (p *peer) sendDebts(debts []*types.Debt) error {
+	filterDebts := make([]*types.Debt, 0)
+	for _, d := range debts {
+		if d != nil && !p.knownDebts.Contains(d.Hash) {
+			filterDebts = append(filterDebts, d)
+		}
+	}
 
-// 	buff := common.SerializePanic(debts)
-// 	p.log.Debug("peer send [debtMsgCode] with size %d bytes and %d debts", len(buff), len(debts))
-// 	err := p2p.SendMessage(p.rw, debtMsgCode, buff)
-// 	if err == nil {
-// 		for _, d := range debts {
-// 			p.knownDebts.Add(d.Hash, nil)
-// 		}
-// 	}
+	buff := common.SerializePanic(filterDebts)
+	p.log.Debug("peer send [debtMsgCode] with size %d bytes and %d debts", len(buff), len(filterDebts))
+	err := p2p.SendMessage(p.rw, debtMsgCode, buff)
+	if err == nil {
+		for _, d := range filterDebts {
+			p.knownDebts.Add(d.Hash, nil)
+		}
+	}
 
-// 	return err
-// }
+	return err
+}
 
 func (p *peer) sendTransactionRequest(txHashMsg *transactionHashMsg) error {
 	buff := common.SerializePanic(txHashMsg)

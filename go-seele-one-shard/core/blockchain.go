@@ -473,6 +473,14 @@ func (bc *Blockchain) applyTxs(block, preBlock *types.Block, statedb *state.Stat
 		return nil, nil, err
 	}
 
+	// update debts
+	for _, d := range block.Debts {
+		err = ApplyDebt(statedb, d, block.Header.Creator)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
 	receipts, err := bc.updateStateDB(statedb, minerRewardTx, block.Transactions[1:], block.Header)
 	if err != nil {
 		return nil, nil, err
@@ -582,23 +590,23 @@ func (bc *Blockchain) ApplyTransaction(tx *types.Transaction, txIndex int, coinb
 	return receipt, nil
 }
 
-// func ApplyDebt(statedb *state.Statedb, d *types.Debt, coinbase common.Address) error {
-// 	data := statedb.GetData(d.Data.Account, d.Hash)
-// 	if bytes.Equal(data, DebtDataFlag) {
-// 		return fmt.Errorf("debt already packed, debt hash %s", d.Hash.ToHex())
-// 	}
+ func ApplyDebt(statedb *state.Statedb, d *types.Debt, coinbase common.Address) error {
+ 	data := statedb.GetData(d.Data.Account, d.Hash)
+ 	if bytes.Equal(data, DebtDataFlag) {
+ 		return fmt.Errorf("debt already packed, debt hash %s", d.Hash.ToHex())
+ 	}
 
-// 	if !statedb.Exist(d.Data.Account) {
-// 		statedb.CreateAccount(d.Data.Account)
-// 	}
+ 	if !statedb.Exist(d.Data.Account) {
+ 		statedb.CreateAccount(d.Data.Account)
+ 	}
 
-// 	// @todo handle contract
+ 	// @todo handle contract
 
-// 	statedb.AddBalance(d.Data.Account, d.Data.Amount)
-// 	statedb.AddBalance(coinbase, d.Data.Fee)
-// 	statedb.SetData(d.Data.Account, d.Hash, DebtDataFlag)
-// 	return nil
-// }
+ 	statedb.AddBalance(d.Data.Account, d.Data.Amount)
+ 	statedb.AddBalance(coinbase, d.Data.Fee)
+ 	statedb.SetData(d.Data.Account, d.Hash, DebtDataFlag)
+ 	return nil
+ }
 
 // deleteLargerHeightBlocks deletes the height-to-hash mappings with larger height in the canonical chain.
 func deleteLargerHeightBlocks(bcStore store.BlockchainStore, largerHeight uint64, rp *recoveryPoint) error {
