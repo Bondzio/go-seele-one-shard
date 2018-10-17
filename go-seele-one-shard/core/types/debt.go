@@ -73,6 +73,11 @@ func NewDebt(tx *Transaction) *Debt {
 		return nil
 	}
 
+	// If the tx is a reward
+	if tx.Data.From == common.EmptyAddress {
+		return nil
+	}
+
 	fromChainNum := tx.Data.From.GetChainNum()
 	toChainNum := tx.Data.To.GetChainNum()
 	shard := tx.Data.To.Shard()

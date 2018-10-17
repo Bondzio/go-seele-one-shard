@@ -258,7 +258,7 @@ out:
 					break
 				}
 
-				miner.log.Info("block and notify p2p saved successfully")
+				//miner.log.Info("block and notify p2p saved successfully")
 				var NewMinedBlockMsg event.HandleNewMinedBlockMsg
 				NewMinedBlockMsg.Block = result.block
 				NewMinedBlockMsg.ChainNum = result.block.ChainNum
@@ -393,7 +393,7 @@ func (miner *Miner) NewMiningLoop() error {
 		miner.log.Info("Failed to get the mining key")
 		return err
 	}
-	miner.log.Info("Got Mining key: %s", miningKeyHash.ToHex())
+	//miner.log.Info("Got Mining key: %s", miningKeyHash.ToHex())
 	miningKeyHashInt.SetBytes(miningKeyHash.Bytes())
 	chainNum := miner.getChainNumByMiningKey(miningKeyHashInt)
 	// try to prepare the new block on a certain chain

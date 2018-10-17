@@ -217,7 +217,7 @@ func (sp *SeeleProtocol) broadcastChainHead(chainNum uint64) {
 		return
 	}
 
-	sp.log.Info("broadcastChainHead, ChainNum: %d, head: %s", chainNum, head.ToHex())
+	//sp.log.Info("broadcastChainHead, ChainNum: %d, head: %s", chainNum, head.ToHex())
 	status := &chainHeadStatus{
 		TD:           localTD,
 		CurrentBlock: head,
@@ -359,12 +359,13 @@ func (p *SeeleProtocol) handleNewMinedBlock(e event.Event) {
 		debts := types.NewDebtMap(confirmedBlock.Transactions)
 		for _, d := range debts[common.LocalShardNumber] {
 			debtChainNum := d.Data.ChainNum
+			p.log.Info("Debts from confirmed block, add to debtPool: %d", debtChainNum)
 			p.debtPool[debtChainNum].Add(d)
 		}
 		p.propagateDebtMap(debts)
 	}
 
-	p.log.Debug("handleNewMinedBlock broadcast chainhead changed. chainNum: %d, new block: %d %s <- %s ",
+	p.log.Info("handleNewMinedBlock broadcast chainhead changed. chainNum: %d, new block: %d %s <- %s ",
 		chainNum, block.Header.Height, block.HeaderHash.ToHex(), block.Header.PreviousBlockHash.ToHex())
 
 	p.broadcastChainHead(chainNum)
@@ -619,10 +620,11 @@ handler:
 				continue
 			}
 
-			p.log.Debug("got %d debts message [%s]", len(debts), codeToStr(msg.Code))
+			p.log.Info("got %d debts message [%s]", len(debts), codeToStr(msg.Code))
 			for _, d := range debts {
 				peer.knownDebts.Add(d.Hash, nil)
 				chainNum := d.Data.ChainNum
+				p.log.Info("received debts message, add to debtPool: %d", chainNum)
 				p.debtPool[chainNum].Add(d)
 			}
 			
@@ -755,7 +757,7 @@ handler:
 			}
 
 			p.log.Debug("Received statusChainHeadMsgCode")
-			p.log.Info("Received peer status, ChainNum: %d, peer head: %s", status.ChainNum, status.CurrentBlock.ToHex())
+			//p.log.Info("Received peer status, ChainNum: %d, peer head: %s", status.ChainNum, status.CurrentBlock.ToHex())
 			peer.SetHead(status.CurrentBlock, status.TD, status.ChainNum)
 			p.syncCh <- struct{}{}
 
