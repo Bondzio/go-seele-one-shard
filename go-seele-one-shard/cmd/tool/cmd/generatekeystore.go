@@ -81,7 +81,7 @@ var generateKeystoreCmd = &cobra.Command{
 
 		for i := 0; i < num; i++ {
 			results[*infos[i].addr] = bigValue
-
+			fmt.Printf("addr: %d, shard: %d\n", i, infos[i].addr.Shard())
 			keyList.WriteString(infos[i].privateKey)
 			keyList.WriteString("\r\n")
 		}

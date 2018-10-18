@@ -234,7 +234,7 @@ func (id *Address) CreateContractAddress(nonce uint64, hashFunc func(interface{}
 }
 
 
-// Shard returns the shard number of this address.
+//  returns the chain number of this address.
 func (id *Address) GetChainNum() uint64 {
 	var sum uint64
 
@@ -247,5 +247,5 @@ func (id *Address) GetChainNum() uint64 {
 	tail := uint64(binary.BigEndian.Uint16(id[18:]))
 	sum += (tail >> 4)
 
-	return (sum % numOfChains) + 1
+	return (sum % numOfChains)
 }

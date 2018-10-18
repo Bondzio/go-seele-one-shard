@@ -6,18 +6,18 @@
 package seele
 
  import (
-// 	"errors"
+ 	"errors"
 // 	"strconv"
 
  	"github.com/seeleteam/go-seele/common"
  	"github.com/seeleteam/go-seele/common/hexutil"
-// 	"github.com/seeleteam/go-seele/core/types"
+ 	"github.com/seeleteam/go-seele/core/types"
  )
 
-// var (
-// 	errTransactionNotFound = errors.New("transaction not found")
+ var (
+ 	errTransactionNotFound = errors.New("transaction not found")
 // 	errDebtNotFound        = errors.New("debt not found")
-// )
+ )
 
  // TransactionPoolAPI provides an API to access transaction pool information.
  type TransactionPoolAPI struct {
@@ -127,58 +127,59 @@ package seele
 // 	return PrintableReceipt(receipt)
 // }
 
-// // GetTransactionByHash returns the transaction by the given transaction hash.
-// func (api *TransactionPoolAPI) GetTransactionByHash(txHash string) (map[string]interface{}, error) {
-// 	store := api.s.chain.GetStore()
-// 	hashByte, err := hexutil.HexToBytes(txHash)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	hash := common.BytesToHash(hashByte)
+ // GetTransactionByHash returns the transaction by the given transaction hash.
+ func (api *TransactionPoolAPI) GetTransactionByHash(txHash string) (map[string]interface{}, error) {
+ 	store := api.s.chains[0].GetStore()
+ 	hashByte, err := hexutil.HexToBytes(txHash)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	hash := common.BytesToHash(hashByte)
 
-// 	output := make(map[string]interface{})
+ 	output := make(map[string]interface{})
 
-// 	// Try to get transaction in txpool
-// 	tx := api.s.TxPool().GetTransaction(hash)
-// 	if tx != nil {
-// 		addTxInfo(output, tx)
-// 		output["status"] = "pool"
+	// Try to get transaction in txpool
+	txpools := api.s.TxPool()
+ 	tx := txpools[0].GetTransaction(hash)
+ 	if tx != nil {
+ 		addTxInfo(output, tx)
+ 		output["status"] = "pool"
 
-// 		return output, nil
-// 	}
+ 		return output, nil
+ 	}
 
-// 	// Try to get finalized transaction
-// 	txIndex, err := store.GetTxIndex(hash)
-// 	if err != nil {
-// 		api.s.log.Info(err.Error())
-// 		return nil, errTransactionNotFound
-// 	}
+ 	// Try to get finalized transaction
+ 	txIndex, err := store.GetTxIndex(hash)
+ 	if err != nil {
+ 		api.s.log.Info(err.Error())
+ 		return nil, errTransactionNotFound
+ 	}
 
-// 	if txIndex != nil {
-// 		block, err := store.GetBlock(txIndex.BlockHash)
-// 		if err != nil {
-// 			return nil, err
-// 		}
+ 	if txIndex != nil {
+ 		block, err := store.GetBlock(txIndex.BlockHash)
+ 		if err != nil {
+ 			return nil, err
+ 		}
 
-// 		addTxInfo(output, block.Transactions[txIndex.Index])
-// 		output["status"] = "block"
-// 		output["blockHash"] = block.HeaderHash.ToHex()
-// 		output["blockHeight"] = block.Header.Height
-// 		output["txIndex"] = txIndex.Index
+ 		addTxInfo(output, block.Transactions[txIndex.Index])
+ 		output["status"] = "block"
+ 		output["blockHash"] = block.HeaderHash.ToHex()
+ 		output["blockHeight"] = block.Header.Height
+ 		output["txIndex"] = txIndex.Index
 
-// 		return output, nil
-// 	}
+ 		return output, nil
+ 	}
 
-// 	return nil, nil
-// }
+ 	return nil, nil
+ }
 
-// func addTxInfo(output map[string]interface{}, tx *types.Transaction) {
-// 	output["transaction"] = PrintableOutputTx(tx)
-// 	debt := types.NewDebt(tx)
-// 	if debt != nil {
-// 		output["debt"] = debt
-// 	}
-// }
+ func addTxInfo(output map[string]interface{}, tx *types.Transaction) {
+ 	output["transaction"] = PrintableOutputTx(tx)
+ 	debt := types.NewDebt(tx)
+ 	if debt != nil {
+ 		output["debt"] = debt
+ 	}
+ }
 
 // // GetDebtByHash return the debt info by debt hash
 // func (api *TransactionPoolAPI) GetDebtByHash(debtHash string) (map[string]interface{}, error) {

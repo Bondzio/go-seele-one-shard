@@ -13,7 +13,7 @@ import (
 
 var (
 	//SeeleToFan base feifan coin number
-	SeeleToFan = big.NewInt(100000000)
+	SeeleToFan = big.NewInt(1000000)
 )
 
 //BigToDecimal simply changes big int to decimal which will miss additional 0 in the last

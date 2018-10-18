@@ -359,7 +359,7 @@ func (p *SeeleProtocol) handleNewMinedBlock(e event.Event) {
 		debts := types.NewDebtMap(confirmedBlock.Transactions)
 		for _, d := range debts[common.LocalShardNumber] {
 			debtChainNum := d.Data.ChainNum
-			p.log.Info("Debts from confirmed block, add to debtPool: %d", debtChainNum)
+			p.log.Debug("Debts from confirmed block, add to debtPool: %d", debtChainNum)
 			p.debtPool[debtChainNum].Add(d)
 		}
 		p.propagateDebtMap(debts)

@@ -6,7 +6,7 @@
 package seele
 
  import (
-// 	"fmt"
+ 	"fmt"
 // 	"os"
 // 	"path/filepath"
 // 	"runtime"
@@ -72,49 +72,49 @@ package seele
 // // 	return api.s.DebtPool().GetAll(), nil
 // // }
 
-// // TpsInfo tps detail info
-// type TpsInfo struct {
-// 	StartHeight uint64
-// 	EndHeight   uint64
-// 	Count       uint64
-// 	Duration    uint64
-// }
+ // TpsInfo tps detail info
+ type TpsInfo struct {
+ 	StartHeight uint64
+ 	EndHeight   uint64
+ 	Count       uint64
+ 	Duration    uint64
+ }
 
-// // GetTPS get tps info
-// func (api *PrivateDebugAPI) GetTPS() (*TpsInfo, error) {
-// 	chain := api.s.BlockChain()
-// 	block := chain.CurrentBlock()
-// 	timeInterval := uint64(150)
-// 	if block.Header.Height == 0 {
-// 		return nil, nil
-// 	}
+ // GetTPS get tps info
+ func (api *PrivateDebugAPI) GetTPS() (*TpsInfo, error) {
+ 	chains := api.s.BlockChain()
+ 	block := chains[0].CurrentBlock()
+ 	timeInterval := uint64(150)
+ 	if block.Header.Height == 0 {
+ 		return nil, nil
+ 	}
 
-// 	var count = uint64(len(block.Transactions) - 1)
-// 	var duration uint64
-// 	var endHeight uint64
-// 	startTime := block.Header.CreateTimestamp.Uint64()
-// 	for height := block.Header.Height - 1; height > 0; height-- {
-// 		current, err := chain.GetStore().GetBlockByHeight(height)
-// 		if err != nil {
-// 			return nil, fmt.Errorf("failed to get block, error:%s, block height:%d", err, height)
-// 		}
+ 	var count = uint64(len(block.Transactions) - 1)
+ 	var duration uint64
+ 	var endHeight uint64
+ 	startTime := block.Header.CreateTimestamp.Uint64()
+ 	for height := block.Header.Height - 1; height > 0; height-- {
+ 		current, err := chains[0].GetStore().GetBlockByHeight(height)
+ 		if err != nil {
+ 			return nil, fmt.Errorf("failed to get block, error:%s, block height:%d", err, height)
+ 		}
 
-// 		count += uint64(len(current.Transactions) - 1)
-// 		duration = startTime - current.Header.CreateTimestamp.Uint64()
-// 		endHeight = height
+ 		count += uint64(len(current.Transactions) - 1)
+ 		duration = startTime - current.Header.CreateTimestamp.Uint64()
+ 		endHeight = height
 
-// 		if duration > timeInterval {
-// 			break
-// 		}
-// 	}
+ 		if duration > timeInterval {
+ 			break
+ 		}
+ 	}
 
-// 	return &TpsInfo{
-// 		StartHeight: endHeight,
-// 		EndHeight:   block.Header.Height,
-// 		Count:       count,
-// 		Duration:    duration,
-// 	}, nil
-// }
+ 	return &TpsInfo{
+ 		StartHeight: endHeight,
+ 		EndHeight:   block.Header.Height,
+ 		Count:       count,
+ 		Duration:    duration,
+ 	}, nil
+ }
 
 // // DumpHeap dumps the heap usage.
 // func (api *PrivateDebugAPI) DumpHeap(fileName string, gcBeforeDump bool) (string, error) {

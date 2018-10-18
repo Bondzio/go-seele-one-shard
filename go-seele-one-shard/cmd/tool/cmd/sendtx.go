@@ -297,6 +297,9 @@ func send(b *balance) *balance {
 		return newBalance
 	}
 
+	fromAddr := crypto.GetAddress(&b.privateKey.PublicKey)
+	fmt.Printf("balance shard: %d, chain: %d send transaction to chain: %d\n", b.address.Shard(), fromAddr.GetChainNum(), addr.GetChainNum())
+
 	ok, err := util.SendTx(client, tx)
 	if !ok || err != nil {
 		return newBalance
