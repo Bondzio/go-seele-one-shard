@@ -105,6 +105,10 @@ func (task *Task) handleMinerRewardTx(statedb *state.Statedb) (*big.Int, error) 
 func (task *Task) chooseTransactions(seele SeeleBackend, statedb *state.Statedb, log *log.SeeleLog, size int) {
 	txIndex := 1 // the first tx is miner reward
 
+	// subtract the size of the reward
+	for _, tx := range task.txs {
+		size -= tx.Size()
+	}
 	
 	for size > 0 {
 		

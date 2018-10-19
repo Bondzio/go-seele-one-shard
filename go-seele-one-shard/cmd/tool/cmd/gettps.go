@@ -25,19 +25,25 @@ var gettps = &cobra.Command{
 			sum := float64(0)
 			for _, client := range clientList {
 				var tps seele.TpsInfo
-				err := client.Call(&tps, "debug_getTPS")
+				err := client.Call(&tps, "debug_getTPSFromAllChains")
 				if err != nil {
 					fmt.Println("failed to get tps ", err)
 					return
 				}
 
 				shard := getShard(client)
-				if tps.Duration > 0 {
-					t := float64(tps.Count) / float64(tps.Duration)
-					fmt.Printf("shard %d: from %d to %d, block number:%d, tx count:%d, interval:%d, tps:%.2f\n", shard, tps.StartHeight,
-						tps.EndHeight, tps.EndHeight-tps.StartHeight, tps.Count, tps.Duration, t)
-					sum += t
-				}
+				for i := 0; i < seele.NumOfChains; i++ {
+					fmt.Printf("shard:%d, chainNum:%d, interval:%d\n", shard, i, tps.Duration[i])
+					if tps.Duration[i] > 0 {
+						//t := float64(tps.Count) / float64(tps.Duration)
+						//fmt.Printf("shard %d: from %d to %d, block number:%d, tx count:%d, interval:%d, tps:%.2f\n", shard, tps.StartHeight,
+						//	tps.EndHeight, tps.EndHeight-tps.StartHeight, tps.Count, tps.Duration, t)
+						t := tps.Tps[i]
+						fmt.Printf("shard:%d, chainNum:%d, tx count:%d, interval:%d, tps:%.2f\n", shard, i,
+						tps.Count[i], tps.Duration[i], t)	
+						sum += t
+					}
+				}	
 			}
 
 			fmt.Printf("sum tps is %.2f\n", sum)

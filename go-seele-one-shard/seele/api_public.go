@@ -208,12 +208,12 @@ func (api *PublicSeeleAPI) GetInfo() (MinerInfo, error) {
  // GetBlockByHeight returns the requested block. When blockNr is -1 the chain head is returned. When fullTx is true all
  // transactions in the block are returned in full detail, otherwise only the transaction hash is returned
   func (api *PublicSeeleAPI) GetBlockByHeight(height int64, fulltx bool) (map[string]interface{}, error) {
-  	block, err := getBlock(api.s.chains[2], height)
+  	block, err := getBlock(api.s.chains[0], height)
   	if err != nil {
   		return nil, err
   	}
 
-  	return rpcOutputBlock(block, fulltx, api.s.chains[2].GetStore())
+  	return rpcOutputBlock(block, fulltx, api.s.chains[0].GetStore())
  }
 
 // // GetBlocks returns the size of requested block. When the blockNr is -1 the chain head is returned.

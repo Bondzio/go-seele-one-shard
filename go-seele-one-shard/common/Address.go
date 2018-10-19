@@ -239,12 +239,12 @@ func (id *Address) GetChainNum() uint64 {
 	var sum uint64
 
 	// sum [0:18]
-	for _, b := range id[:18] {
+	for _, b := range id[:16] {
 		sum += uint64(b)
 	}
 
 	// sum [18:20] except address type
-	tail := uint64(binary.BigEndian.Uint16(id[18:]))
+	tail := uint64(binary.BigEndian.Uint16(id[16:]))
 	sum += (tail >> 4)
 
 	return (sum % numOfChains)

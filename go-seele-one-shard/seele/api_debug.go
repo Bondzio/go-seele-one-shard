@@ -74,47 +74,48 @@ package seele
 
  // TpsInfo tps detail info
  type TpsInfo struct {
- 	StartHeight uint64
- 	EndHeight   uint64
- 	Count       uint64
- 	Duration    uint64
+// 	StartHeight uint64
+// 	EndHeight   uint64
+ 	Count       [NumOfChains]uint64
+	Duration    [NumOfChains]uint64
+	Tps         [NumOfChains]float64 
  }
 
  // GetTPS get tps info
- func (api *PrivateDebugAPI) GetTPS() (*TpsInfo, error) {
- 	chains := api.s.BlockChain()
- 	block := chains[0].CurrentBlock()
- 	timeInterval := uint64(150)
- 	if block.Header.Height == 0 {
- 		return nil, nil
- 	}
+//  func (api *PrivateDebugAPI) GetTPS() (*TpsInfo, error) {
+//  	chains := api.s.BlockChain()
+//  	block := chains[0].CurrentBlock()
+//  	timeInterval := uint64(150)
+//  	if block.Header.Height == 0 {
+//  		return nil, nil
+//  	}
 
- 	var count = uint64(len(block.Transactions) - 1)
- 	var duration uint64
- 	var endHeight uint64
- 	startTime := block.Header.CreateTimestamp.Uint64()
- 	for height := block.Header.Height - 1; height > 0; height-- {
- 		current, err := chains[0].GetStore().GetBlockByHeight(height)
- 		if err != nil {
- 			return nil, fmt.Errorf("failed to get block, error:%s, block height:%d", err, height)
- 		}
+//  	var count = uint64(len(block.Transactions) - 1)
+//  	var duration uint64
+//  	var endHeight uint64
+//  	startTime := block.Header.CreateTimestamp.Uint64()
+//  	for height := block.Header.Height - 1; height > 0; height-- {
+//  		current, err := chains[0].GetStore().GetBlockByHeight(height)
+//  		if err != nil {
+//  			return nil, fmt.Errorf("failed to get block, error:%s, block height:%d", err, height)
+//  		}
 
- 		count += uint64(len(current.Transactions) - 1)
- 		duration = startTime - current.Header.CreateTimestamp.Uint64()
- 		endHeight = height
+//  		count += uint64(len(current.Transactions) - 1)
+//  		duration = startTime - current.Header.CreateTimestamp.Uint64()
+//  		endHeight = height
 
- 		if duration > timeInterval {
- 			break
- 		}
- 	}
+//  		if duration > timeInterval {
+//  			break
+//  		}
+//  	}
 
- 	return &TpsInfo{
- 		StartHeight: endHeight,
- 		EndHeight:   block.Header.Height,
- 		Count:       count,
- 		Duration:    duration,
- 	}, nil
- }
+//  	return &TpsInfo{
+//  		StartHeight: endHeight,
+//  		EndHeight:   block.Header.Height,
+//  		Count:       count,
+//  		Duration:    duration,
+//  	}, nil
+//  }
 
 // // DumpHeap dumps the heap usage.
 // func (api *PrivateDebugAPI) DumpHeap(fileName string, gcBeforeDump bool) (string, error) {
@@ -134,3 +135,48 @@ package seele
 
 // 	return flie, pprof.WriteHeapProfile(f)
 // }
+
+
+// get tps info from all the chains
+func (api *PrivateDebugAPI) GetTPSFromAllChains() (*TpsInfo, error) {
+	var tps [NumOfChains]float64
+	var count [NumOfChains]uint64
+	var duration [NumOfChains]uint64
+	chains := api.s.BlockChain()
+	for i := 0; i < NumOfChains; i++{
+		block := chains[i].CurrentBlock()
+		timeInterval := uint64(150)
+		if block.Header.Height == 0 {
+			return nil, nil
+		}
+
+		count[i] = uint64(len(block.Transactions) - 1)
+		startTime := block.Header.CreateTimestamp.Uint64()
+		for height := block.Header.Height - 1; height > 0; height-- {
+			current, err := chains[i].GetStore().GetBlockByHeight(height)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get block, error:%s, block height:%d", err, height)
+			}	
+
+			count[i] += uint64(len(current.Transactions) - 1)
+			duration[i] = startTime - current.Header.CreateTimestamp.Uint64()
+
+			if duration[i] > timeInterval {
+				break
+			}
+		}
+		if duration[i] > 0 {
+			tps[i] = float64(count[i]) / float64(duration[i])
+			fmt.Printf("In debug_getTPS, chainNum:%d, tx count:%d, startTime: %d, interval:%d, tps:%.2f\n", i,
+							count[i], startTime, duration[i], tps[i])
+		}
+		
+	}
+	
+
+	return &TpsInfo{
+		Tps:		 tps,
+		Count:       count,
+		Duration:    duration,
+	}, nil
+}

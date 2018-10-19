@@ -238,13 +238,13 @@ func (sp *SeeleProtocol) syncTransactions(p *peer) {
 	sp.wg.Add(1)
 
 	var pending []*transactionMsg
-	var txMsg 	*transactionMsg
+	var txMsg 	transactionMsg
  	for i := 0; i < NumOfChains; i++ {
 		pendingInOnePool := sp.txPool[i].GetTransactions(false, true)
 		for _, tx := range pendingInOnePool {
 			txMsg.Tx = tx
 			txMsg.ChainNum = uint64(i)
-			pending = append(pending, txMsg)
+			pending = append(pending, &txMsg)
 		} 
 	}
 
