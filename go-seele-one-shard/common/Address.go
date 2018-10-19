@@ -236,16 +236,12 @@ func (id *Address) CreateContractAddress(nonce uint64, hashFunc func(interface{}
 
 //  returns the chain number of this address.
 func (id *Address) GetChainNum() uint64 {
-	var sum uint64
+	AddressInt := new(big.Int)
 
-	// sum [0:18]
-	for _, b := range id[:16] {
-		sum += uint64(b)
-	}
-
-	// sum [18:20] except address type
-	tail := uint64(binary.BigEndian.Uint16(id[16:]))
-	sum += (tail >> 4)
-
-	return (sum % numOfChains)
+	//miner.log.Info("Got Mining key: %s", miningKeyHash.ToHex())
+	AddressInt.SetBytes(id.Bytes())
+	result := new(big.Int)
+	result = result.Mod(AddressInt, big.NewInt(numOfChains))
+	chainNum := result.Uint64()
+	return chainNum
 }

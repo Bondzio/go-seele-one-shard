@@ -624,7 +624,7 @@ handler:
 			for _, d := range debts {
 				peer.knownDebts.Add(d.Hash, nil)
 				chainNum := d.Data.ChainNum
-				p.log.Info("received debts message, add to debtPool: %d", chainNum)
+				p.log.Debug("received debts message, add to debtPool: %d", chainNum)
 				p.debtPool[chainNum].Add(d)
 			}
 			

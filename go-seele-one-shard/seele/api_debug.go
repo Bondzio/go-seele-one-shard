@@ -74,8 +74,6 @@ package seele
 
  // TpsInfo tps detail info
  type TpsInfo struct {
-// 	StartHeight uint64
-// 	EndHeight   uint64
  	Count       [NumOfChains]uint64
 	Duration    [NumOfChains]uint64
 	Tps         [NumOfChains]float64 
@@ -167,8 +165,6 @@ func (api *PrivateDebugAPI) GetTPSFromAllChains() (*TpsInfo, error) {
 		}
 		if duration[i] > 0 {
 			tps[i] = float64(count[i]) / float64(duration[i])
-			fmt.Printf("In debug_getTPS, chainNum:%d, tx count:%d, startTime: %d, interval:%d, tps:%.2f\n", i,
-							count[i], startTime, duration[i], tps[i])
 		}
 		
 	}

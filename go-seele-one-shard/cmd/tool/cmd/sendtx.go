@@ -77,10 +77,10 @@ func StartSend(balanceList []*balance, threadNum int) {
 		go loopSendMode1_2(balanceList, lock, threadNum)
 	}
 
-	if mode == 1 {
-		wg.Add(1)
-		go loopCheckMode1(balanceList, lock)
-	}
+	//if mode == 1 {
+	//	wg.Add(1)
+	//	go loopCheckMode1(balanceList, lock)
+	//}
 }
 
 var tpsStartTime time.Time
@@ -453,7 +453,7 @@ func init() {
 	rootCmd.AddCommand(sendTxCmd)
 
 	sendTxCmd.Flags().StringVarP(&keyFile, "keyfile", "f", "keystore.txt", "key store file")
-	sendTxCmd.Flags().IntVarP(&tps, "tps", "", 100, "target tps to send transaction")
+	sendTxCmd.Flags().IntVarP(&tps, "tps", "", 3, "target tps to send transaction")
 	sendTxCmd.Flags().BoolVarP(&debug, "debug", "d", false, "whether print more debug info")
 	sendTxCmd.Flags().IntVarP(&mode, "mode", "m", 1, "send tx mode")
 	sendTxCmd.Flags().IntVarP(&threads, "threads", "t", 1, "send tx threads")

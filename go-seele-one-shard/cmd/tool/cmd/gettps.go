@@ -35,9 +35,6 @@ var gettps = &cobra.Command{
 				for i := 0; i < seele.NumOfChains; i++ {
 					fmt.Printf("shard:%d, chainNum:%d, interval:%d\n", shard, i, tps.Duration[i])
 					if tps.Duration[i] > 0 {
-						//t := float64(tps.Count) / float64(tps.Duration)
-						//fmt.Printf("shard %d: from %d to %d, block number:%d, tx count:%d, interval:%d, tps:%.2f\n", shard, tps.StartHeight,
-						//	tps.EndHeight, tps.EndHeight-tps.StartHeight, tps.Count, tps.Duration, t)
 						t := tps.Tps[i]
 						fmt.Printf("shard:%d, chainNum:%d, tx count:%d, interval:%d, tps:%.2f\n", shard, i,
 						tps.Count[i], tps.Duration[i], t)	
