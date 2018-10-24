@@ -43,7 +43,16 @@ var (
 const (
 	// number of chains
 	numOfChains = 3
+	StartHeightOfGetMiningKeyFromChain = 4
+	longDist	= 3
+	shortDist	= 1
 )
+
+type MiningDataPack struct {
+	Heights  [numOfChains]uint64
+	TxHashes [numOfChains]common.Hash
+	Nonce    uint64 
+}
 
 // SeeleBackend wraps all methods required for minier.
 type SeeleBackend interface {
@@ -74,6 +83,8 @@ type Miner struct {
 	threads              int
 	isFirstBlockPrepared int32
 	hashrate             metrics.Meter // Meter tracking the average hashrate
+
+	miningKeyHash		 common.Hash
 }
 
 // NewMiner constructs and returns a miner instance
@@ -388,14 +399,21 @@ func (miner *Miner) NewMiningLoop() error {
 	// try to get a random key from previous transactions and 
 	// determine which chain the miner will work on
 	// TODO: create miner.getMiningKey and getShardByMiningKey 	
-	miningKeyHash, err:= miner.getMiningKey()
+	err := miner.getMiningKey()
 	if err != nil {
 		miner.log.Info("Failed to get the mining key")
 		return err
 	}
-	//miner.log.Info("Got Mining key: %s", miningKeyHash.ToHex())
-	miningKeyHashInt.SetBytes(miningKeyHash.Bytes())
+	
+	miningKeyHashInt.SetBytes(miner.miningKeyHash.Bytes())
 	chainNum := miner.getChainNumByMiningKey(miningKeyHashInt)
+
+	// for debug use only
+	chains := miner.seele.BlockChain()
+	currentBlock := chains[chainNum].CurrentBlock()
+	blockHeight := currentBlock.Header.Height
+	miner.log.Info("Got Mining key: %s, chainNum: %d, height: %d", miner.miningKeyHash.ToHex(), chainNum, blockHeight)
+
 	// try to prepare the new block on a certain chain
 	if err := miner.prepareNewBlock(chainNum); err != nil {
 		return err
@@ -405,14 +423,93 @@ func (miner *Miner) NewMiningLoop() error {
 } 
 
 // TODO: generate the mining key from the historical data
-func (miner *Miner) getMiningKey() (common.Hash, error) {
+//func (miner *Miner) getMiningKey() (common.Hash, error) {
 
-	rand.Seed(time.Now().UnixNano())
-	x := rand.Intn(100000)
-	MiningKeyHash := crypto.HashBytes(int2bytes(x))
+//	rand.Seed(time.Now().UnixNano())
+//	x := rand.Intn(100000)
+//	MiningKeyHash := crypto.HashBytes(int2bytes(x))
 
-	return MiningKeyHash, nil
+//	return MiningKeyHash, nil
 
+//}
+
+func (miner *Miner) getMiningKey() error {
+
+	chains := miner.seele.BlockChain()
+	var heights  [numOfChains]uint64
+	var txHashes [numOfChains]common.Hash
+
+	for i := 0; i < numOfChains; i++ {
+		currentBlock := chains[i].CurrentBlock()
+		blockHeight := currentBlock.Header.Height
+		
+		if blockHeight > StartHeightOfGetMiningKeyFromChain {
+			heights[i] = uint64(rand.Intn(longDist - shortDist)) + blockHeight - longDist
+			blockPicked, err := chains[i].GetStore().GetBlockByHeight(heights[i])
+			if err != nil {
+				return err
+			}
+			transactions := blockPicked.Transactions
+			transactionIndex := rand.Intn(len(transactions))
+			txHashes[i] = transactions[transactionIndex].Hash
+		} else {
+			rand.Seed(time.Now().UnixNano())
+			x := rand.Intn(100000)
+			miner.miningKeyHash = crypto.HashBytes(int2bytes(x))
+			return nil
+		}
+	}
+
+	dataPack := &MiningDataPack {
+		Heights:	heights,
+		TxHashes:	txHashes,
+	}
+
+	miner.commitTaskToKeyMining(dataPack)
+	
+	return nil
+}
+
+// commitTask commits the given task to the miner
+func (miner *Miner) commitTaskToKeyMining(dataPack *MiningDataPack) {
+	if atomic.LoadInt32(&miner.mining) != 1 {
+		return
+	}
+
+	threads := miner.threads
+	miner.log.Debug("miner threads num:%d", threads)
+
+	var step uint64
+	var seed uint64
+	if threads != 0 {
+		step = math.MaxUint64 / uint64(threads)
+	}
+
+	var isNonceFound int32
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < threads; i++ {
+		if threads == 1 {
+			seed = r.Uint64()
+		} else {
+			seed = uint64(r.Int63n(int64(step)))
+		}
+		tSeed := seed + uint64(i)*step
+		var min uint64
+		var max uint64
+		min = uint64(i) * step
+
+		if i != threads-1 {
+			max = min + step - 1
+		} else {
+			max = math.MaxUint64
+		}
+
+		miner.wg.Add(1)
+		go func(tseed uint64, tmin uint64, tmax uint64) {
+			defer miner.wg.Done()
+			StartMiningForKey(dataPack, tseed, tmin, tmax, &miner.miningKeyHash, miner.stopChan, &isNonceFound, miner.log)
+		}(tSeed, min, max)
+	}
 }
 
 func (miner *Miner) getChainNumByMiningKey(miningKeyHashInt *big.Int) uint64 {

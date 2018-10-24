@@ -453,7 +453,7 @@ func init() {
 	rootCmd.AddCommand(sendTxCmd)
 
 	sendTxCmd.Flags().StringVarP(&keyFile, "keyfile", "f", "keystore.txt", "key store file")
-	sendTxCmd.Flags().IntVarP(&tps, "tps", "", 3, "target tps to send transaction")
+	sendTxCmd.Flags().IntVarP(&tps, "tps", "", 1000, "target tps to send transaction")
 	sendTxCmd.Flags().BoolVarP(&debug, "debug", "d", false, "whether print more debug info")
 	sendTxCmd.Flags().IntVarP(&mode, "mode", "m", 1, "send tx mode")
 	sendTxCmd.Flags().IntVarP(&threads, "threads", "t", 1, "send tx threads")

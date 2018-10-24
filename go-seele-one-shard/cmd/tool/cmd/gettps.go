@@ -33,7 +33,6 @@ var gettps = &cobra.Command{
 
 				shard := getShard(client)
 				for i := 0; i < seele.NumOfChains; i++ {
-					fmt.Printf("shard:%d, chainNum:%d, interval:%d\n", shard, i, tps.Duration[i])
 					if tps.Duration[i] > 0 {
 						t := tps.Tps[i]
 						fmt.Printf("shard:%d, chainNum:%d, tx count:%d, interval:%d, tps:%.2f\n", shard, i,

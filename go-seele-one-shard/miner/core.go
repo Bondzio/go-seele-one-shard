@@ -11,6 +11,8 @@ import (
 
 	metrics "github.com/rcrowley/go-metrics"
 	"github.com/seeleteam/go-seele/log"
+	"github.com/seeleteam/go-seele/common"
+	"github.com/seeleteam/go-seele/crypto"
 	"github.com/seeleteam/go-seele/miner/pow"
 )
 
@@ -97,4 +99,63 @@ miner:
 // logAbort logs the info that nonce finding is aborted
 func logAbort(log *log.SeeleLog) {
 	log.Info("nonce finding aborted")
+}
+
+func StartMiningForKey(dataPack *MiningDataPack, seed uint64, min uint64, max uint64, miningKeyHash *common.Hash, abort <-chan struct{}, isNonceFound *int32, log *log.SeeleLog) {
+
+	var nonce = seed
+	var hashInt big.Int
+	target := pow.GetMiningTarget(new(big.Int).SetUint64(30000000))
+
+miner:
+	for {
+		select {
+		case <-abort:
+			logAbort(log)
+			break miner
+
+		default:
+			if atomic.LoadInt32(isNonceFound) != 0 {
+				log.Info("exit key mining as nonce is found by other threads")
+				break miner
+			}
+
+			dataPack.Nonce = nonce
+			hash := crypto.MustHash(dataPack)
+			hashInt.SetBytes(hash.Bytes())
+
+			// found
+			if hashInt.Cmp(target) <= 0 {
+				miningKeyHash = &hash
+
+				select {
+				case <-abort:
+					logAbort(log)
+				default:
+					atomic.StoreInt32(isNonceFound, 1)
+					log.Info("key mining, nonce finding succeeded")
+				}
+
+				break miner
+			}
+
+			// when nonce reached max, nonce traverses in [min, seed-1]
+			if nonce == max {
+				nonce = min
+			}
+			// outage
+			if nonce == seed-1 {
+				select {
+				case <-abort:
+					logAbort(log)
+				default:
+					log.Warn("key mining, nonce finding outage")
+				}
+
+				break miner
+			}
+
+			nonce++
+		}
+	}
 }
