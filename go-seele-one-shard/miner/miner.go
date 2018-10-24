@@ -394,17 +394,16 @@ func (miner *Miner) Hashrate() float64 {
 }
 
 func (miner *Miner) NewMiningLoop() error {
-	miningKeyHashInt := new(big.Int)
 
-	// try to get a random key from previous transactions and 
+	// get a random key from previous transactions and 
 	// determine which chain the miner will work on
-	// TODO: create miner.getMiningKey and getShardByMiningKey 	
 	err := miner.getMiningKey()
 	if err != nil {
 		miner.log.Info("Failed to get the mining key")
 		return err
 	}
 	
+	miningKeyHashInt := new(big.Int)
 	miningKeyHashInt.SetBytes(miner.miningKeyHash.Bytes())
 	chainNum := miner.getChainNumByMiningKey(miningKeyHashInt)
 
@@ -421,6 +420,20 @@ func (miner *Miner) NewMiningLoop() error {
 	
 	return nil
 } 
+
+func (miner *Miner) getChainNumByMiningKey(miningKeyHashInt *big.Int) uint64 {
+
+	result := new(big.Int)
+	result = result.Mod(miningKeyHashInt, big.NewInt(numOfChains))
+	chainNum := result.Uint64()
+	return chainNum
+}
+
+func int2bytes(num int) (b []byte) {
+	b = make([]byte, 4)
+	binary.BigEndian.PutUint32(b, uint32(num))
+	return
+}
 
 // TODO: generate the mining key from the historical data
 //func (miner *Miner) getMiningKey() (common.Hash, error) {
@@ -507,21 +520,70 @@ func (miner *Miner) commitTaskToKeyMining(dataPack *MiningDataPack) {
 		miner.wg.Add(1)
 		go func(tseed uint64, tmin uint64, tmax uint64) {
 			defer miner.wg.Done()
-			StartMiningForKey(dataPack, tseed, tmin, tmax, &miner.miningKeyHash, miner.stopChan, &isNonceFound, miner.log)
+			miner.StartMiningForKey(dataPack, tseed, tmin, tmax, &isNonceFound)
 		}(tSeed, min, max)
+
+		miner.wg.Wait()
 	}
 }
 
-func (miner *Miner) getChainNumByMiningKey(miningKeyHashInt *big.Int) uint64 {
 
-	result := new(big.Int)
-	result = result.Mod(miningKeyHashInt, big.NewInt(numOfChains))
-	chainNum := result.Uint64()
-	return chainNum
-}
 
-func int2bytes(num int) (b []byte) {
-	b = make([]byte, 4)
-	binary.BigEndian.PutUint32(b, uint32(num))
-	return
+func (miner *Miner) StartMiningForKey(dataPack *MiningDataPack, seed uint64, min uint64, max uint64, isNonceFound *int32) {
+
+	var nonce = seed
+	var hashInt big.Int
+	target := pow.GetMiningTarget(new(big.Int).SetUint64(30000000))
+
+KeyMiner:
+	for {
+		select {
+		case <-miner.stopChan:
+			logAbort(miner.log)
+			break KeyMiner
+
+		default:
+			if atomic.LoadInt32(isNonceFound) != 0 {
+				miner.log.Info("exit key mining as nonce is found by other threads")
+				break KeyMiner
+			}
+
+			dataPack.Nonce = nonce
+			hash := crypto.MustHash(dataPack)
+			hashInt.SetBytes(hash.Bytes())
+
+			// found
+			if hashInt.Cmp(target) <= 0 {
+				miner.miningKeyHash = hash
+
+				select {
+				case <-miner.stopChan:
+					logAbort(miner.log)
+				default:
+					atomic.StoreInt32(isNonceFound, 1)
+					miner.log.Info("key mining, nonce finding succeeded: %s", hash.ToHex())
+				}
+
+				break KeyMiner
+			}
+
+			// when nonce reached max, nonce traverses in [min, seed-1]
+			if nonce == max {
+				nonce = min
+			}
+			// outage
+			if nonce == seed-1 {
+				select {
+				case <-miner.stopChan:
+					logAbort(miner.log)
+				default:
+					miner.log.Warn("key mining, nonce finding outage")
+				}
+
+				break KeyMiner
+			}
+
+			nonce++
+		}
+	}
 }
